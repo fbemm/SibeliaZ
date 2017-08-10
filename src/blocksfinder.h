@@ -398,12 +398,55 @@ namespace Sibelia
 				{
 					for (size_t sample = 0; sample < sampleSize_; sample++)
 					{
-						while (curr
+						for (size_t d = 0; ; d++)
+						{
+							Edge e = storage_.RandomBackwardEdge(currentPath.GetStartVertex());
+							if (!e.Valid() || d == lookingDepth_ || !currentPath.PointPushFront(e))
+							{
+								for (size_t i = 0; i < d; i++)
+								{
+									currentPath.PointPopFront();
+								}
 
-						
-					}					
+								break;
+							}
+							else
+							{
+								int64_t currentScore = currentPath.Score(scoreFullChains_);
+								if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
+								{
+									bestPath.UpdateBackward(currentPath, currentScore);
+								}
+							}
+						}
+					}				
 					
-					bestPath.FixBackward(currentPath);
+					bestPath.FixBackward(currentPath);					
+					for (size_t sample = 0; sample < sampleSize_; sample++)
+					{
+						for (size_t d = 0; ; d++)
+						{
+							Edge e = storage_.RandomBackwardEdge(currentPath.GetStartVertex());
+							if (!e.Valid() || d == lookingDepth_ || !currentPath.PointPushBack(e))
+							{
+								for (size_t i = 0; i < d; i++)
+								{
+									currentPath.PointPopBack();
+								}
+
+								break;
+							}
+							else
+							{
+								int64_t currentScore = currentPath.Score(scoreFullChains_);
+								if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
+								{
+									bestPath.UpdateForward(currentPath, currentScore);
+								}
+							}
+						}
+					}
+
 					bestPath.FixForward(currentPath);
 				}
 				else
