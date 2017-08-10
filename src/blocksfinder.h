@@ -426,7 +426,7 @@ namespace Sibelia
 					{
 						for (size_t d = 0; ; d++)
 						{
-							Edge e = storage_.RandomBackwardEdge(currentPath.GetStartVertex());
+							Edge e = storage_.RandomForwardEdge(currentPath.GetEndVertex());
 							if (!e.Valid() || d == lookingDepth_ || !currentPath.PointPushBack(e))
 							{
 								for (size_t i = 0; i < d; i++)
@@ -449,7 +449,7 @@ namespace Sibelia
 
 					bestPath.FixForward(currentPath);
 
-					if (bestPath.score_ <= prevBestScore * 1.05)
+					if (bestPath.score_ <= prevBestScore * 1.01)
 					{
 						break;
 					}
