@@ -86,7 +86,7 @@ namespace Sibelia
 		int64_t endVertex_;
 		char ch_;
 		char revCh_;
-		int64_t length_;
+		int64_t length_;		
 	};	
 
 	class JunctionStorage
@@ -237,7 +237,7 @@ namespace Sibelia
 			bool operator != (const JunctionIterator & arg) const
 			{
 				return !(*this == arg);
-			}
+			}			
 
 		private:
 
@@ -442,6 +442,48 @@ namespace Sibelia
 			}
 		}
 
+		/*
+		void AssignProbabilities(std::map<int64_t, int64_t> & bubbleCount)
+		{
+			for (int64_t vid = 0; vid < ingoingEdge_.size(); vid++)
+			{
+				double total = 0;
+				for (auto & e : ingoingEdge_[vid])
+				{
+					total += bubbleCount[e.GetEndVertex()];
+				}
+
+				for (auto & e : outgoingEdge_[vid])
+				{
+					total += bubbleCount[e.GetEndVertex()];
+				}
+
+				for (auto & e : ingoingEdge_[vid])
+				{					
+					edgeProb_[vid].push_back(double(bubbleCount[e.GetStartVertex()]) / total + (edgeProb_[vid].size() > 0 ? edgeProb_[vid].back() : 0));
+				}
+
+				for (auto & e : outgoingEdge_[vid])
+				{
+					edgeProb_[vid].push_back(double(bubbleCount[e.GetEndVertex()]) / total + (edgeProb_[vid].size() > 0 ? edgeProb_[vid].back() : 0));
+				}
+
+				edgeProb_[vid].back() = 1.01;
+			}
+		}
+		
+		Edge RandomEdge(int64_t vid) const
+		{
+			double coin = double(rand()) / RAND_MAX;		
+			size_t it = std::lower_bound(edgeProb_[vid + GetVerticesNumber()].begin(), edgeProb_[vid + GetVerticesNumber()].end(), coin) - edgeProb_[vid + GetVerticesNumber()];
+			if (it < ingoingEdge_[vid + GetVerticesNumber()].size())
+			{
+				return ingoingEdge_[vid + GetVerticesNumber()][it];
+			}
+
+			return outgoingEdge_[vid + GetVerticesNumber()][it];
+		}*/
+
 		JunctionStorage() {}
 		JunctionStorage(const std::string & fileName, const std::string & genomesFileName, uint64_t k) : k_(k)
 		{
@@ -450,15 +492,12 @@ namespace Sibelia
 
 	private:
 		
-		struct LightEdge
-		{
-			int64_t vertex;
-			char ch;
-		};
 
 		int64_t k_;
+		std::vector<std::vector<double> > edgeProb_;
 		std::vector<std::vector<Edge> > ingoingEdge_;
-		std::vector<std::vector<Edge> > outgoingEdge_;
+		std::vector<std::vector<Edge> > outgoingEdge_;		
+		
 		std::vector<std::string> sequence_;
 		std::vector<std::string> sequenceDescription_;
 		std::vector<VertexVector> posChr_;

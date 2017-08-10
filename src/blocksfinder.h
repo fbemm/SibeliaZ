@@ -178,7 +178,7 @@ namespace Sibelia
 	{
 	public:
 
-		BlocksFinder(const JunctionStorage & storage, size_t k) : storage_(storage), k_(k), forbidden_(storage)
+		BlocksFinder(JunctionStorage & storage, size_t k) : storage_(storage), k_(k), forbidden_(storage)
 		{
 			scoreFullChains_ = false;
 		}
@@ -216,6 +216,7 @@ namespace Sibelia
 			std::sort(bubbleCountVector.begin(), bubbleCountVector.end());
 			std::ofstream debugStream(debugOut.c_str());
 			DistanceKeeper distanceKeeper(storage_.GetVerticesNumber());
+			storage_.AssignProbabilities(bubbleCount);
 			for (auto it = bubbleCountVector.rbegin(); it != bubbleCountVector.rend(); ++it)
 			{
 				if (count++ % 1000 == 0)
@@ -395,12 +396,20 @@ namespace Sibelia
 				int64_t prevBestScore = bestPath.score_;
 				if (sampleSize_ > 0)
 				{
-//					ExtendPathRandom(currentPath, bestPath, sampleSize_, lookingDepth_, bubbleCount);
+					for (size_t sample = 0; sample < sampleSize_; sample++)
+					{
+						while (curr
+
+						
+					}					
+					
+					bestPath.FixBackward(currentPath);
+					bestPath.FixForward(currentPath);
 				}
 				else
 				{
 					ExtendPathBackward(currentPath, bestPath, lookingDepth_);
-					bestPath.FixBackward(currentPath);					
+					bestPath.FixBackward(currentPath);	
 					ExtendPathForward(currentPath, bestPath, lookingDepth_);
 					bestPath.FixForward(currentPath);
 				}
@@ -447,7 +456,7 @@ namespace Sibelia
 				}
 			}			
 		}
-		
+
 		void ExtendPathForward(Path & currentPath, BestPath & bestPath, int maxDepth)
 		{
 			if (maxDepth > 0)
@@ -558,7 +567,7 @@ namespace Sibelia
 		int64_t minBlockSize_;
 		int64_t maxBranchSize_;
 		int64_t flankingThreshold_;		
-		const JunctionStorage & storage_;
+		JunctionStorage & storage_;
 		Forbidden forbidden_;
 		std::vector<Edge> adjList_;
 		std::vector<std::vector<Assignment> > blockId_;

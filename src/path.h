@@ -224,7 +224,6 @@ namespace Sibelia
 			int64_t startVertexDistance = rightBody_.empty() ? 0 : rightBody_.back().endDistance;
 			int64_t endVertexDistance = startVertexDistance + e.GetLength();
 
-
 			for (auto & inst : instance_)
 			{
 				inst.nextFlankDistance = inst.rightFlankDistance;
@@ -482,7 +481,7 @@ namespace Sibelia
 			int64_t rightFlank = abs(inst.rightFlankDistance - (rightBody_.size() > 0 ? rightBody_.back().endDistance : 0));
 			length = abs(inst.seq.front().GetPosition(storage_) - inst.seq.back().GetPosition(storage_));
 			score = length - leftFlank - rightFlank;
-		}
+		}		
 
 	private:
 
