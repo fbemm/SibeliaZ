@@ -448,6 +448,11 @@ namespace Sibelia
 					}
 
 					bestPath.FixForward(currentPath);
+
+					if (bestPath.score_ <= prevBestScore * 1.05)
+					{
+						break;
+					}
 				}
 				else
 				{
@@ -455,12 +460,12 @@ namespace Sibelia
 					bestPath.FixBackward(currentPath);	
 					ExtendPathForward(currentPath, bestPath, lookingDepth_);
 					bestPath.FixForward(currentPath);
-				}
-				
-				if (bestPath.score_ <= prevBestScore)
-				{
-					break;
-				}
+
+					if (bestPath.score_ <= prevBestScore)
+					{
+						break;
+					}
+				}							
 			}
 						
 			if (currentPath.Score(true) > 0 && currentPath.MiddlePathLength() >= minBlockSize_ && currentPath.GoodInstances() > 1)

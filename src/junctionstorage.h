@@ -489,6 +489,16 @@ namespace Sibelia
 			return outgoingEdge_[vid + GetVerticesNumber()][it];
 		}*/
 
+		double Weight(int64_t vid, std::map<int64_t, int64_t> & bubbleCount) const
+		{
+			if (bubbleCount[vid] == 0)
+			{
+				return 0.1;
+			}
+
+			return bubbleCount[vid];
+		}
+
 		void AssignProbabilities(std::map<int64_t, int64_t> & bubbleCount)
 		{
 			ingoingEdgeProb_.resize(ingoingEdge_.size());
@@ -500,12 +510,12 @@ namespace Sibelia
 					double ingoingTotal = 0;
 					for (auto & e : ingoingEdge_[vid])
 					{
-						ingoingTotal += bubbleCount[e.GetEndVertex()];
+						ingoingTotal += Weight(e.GetStartVertex(), bubbleCount);
 					}
 
 					for (auto & e : ingoingEdge_[vid])
 					{
-						ingoingEdgeProb_[vid].push_back(double(bubbleCount[e.GetStartVertex()]) / ingoingTotal + (ingoingEdgeProb_[vid].size() > 0 ? ingoingEdgeProb_[vid].back() : 0));
+						ingoingEdgeProb_[vid].push_back(Weight(e.GetStartVertex(), bubbleCount) / ingoingTotal + (ingoingEdgeProb_[vid].size() > 0 ? ingoingEdgeProb_[vid].back() : 0));
 					}
 
 					ingoingEdgeProb_[vid].back() = 1.01;
@@ -516,12 +526,12 @@ namespace Sibelia
 					double outgoingTotal = 0;
 					for (auto & e : outgoingEdge_[vid])
 					{
-						outgoingTotal += bubbleCount[e.GetEndVertex()];
+						outgoingTotal += Weight(e.GetEndVertex(), bubbleCount);
 					}
 
 					for (auto & e : outgoingEdge_[vid])
 					{
-						outgoingEdgeProb_[vid].push_back(double(bubbleCount[e.GetEndVertex()]) / outgoingTotal + (outgoingEdgeProb_[vid].size() > 0 ? outgoingEdgeProb_[vid].back() : 0));
+						outgoingEdgeProb_[vid].push_back(Weight(e.GetEndVertex(), bubbleCount) / outgoingTotal + (outgoingEdgeProb_[vid].size() > 0 ? outgoingEdgeProb_[vid].back() : 0));
 					}
 
 					outgoingEdgeProb_[vid].back() = 1.01;
