@@ -158,6 +158,7 @@
     <ClInclude Include="..\..\src\dnachar.h" />
     <ClInclude Include="..\..\src\forbidden.h" />
     <ClInclude Include="..\..\src\junctionapi.h" />
+    <ClInclude Include="..\..\src\lightpath.h" />
     <ClInclude Include="..\..\src\outputgenerator.h" />
     <ClInclude Include="..\..\src\blocksfinder.h" />
     <ClInclude Include="..\..\src\junctionstorage.h" />

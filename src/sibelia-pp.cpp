@@ -10,7 +10,7 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
-const int64_t Sibelia::Assignment::UNKNOWN_BLOCK = INT32_MAX;
+//const int64_t Sibelia::Assignment::UNKNOWN_BLOCK = INT32_MAX;
 
 class OddConstraint : public TCLAP::Constraint < unsigned int >
 {
@@ -151,7 +151,7 @@ int main(int argc, char * argv[])
 			sampleSize.getValue(),
 			threads.getValue(),
 			outDirName.getValue() + "/paths.txt");
-		finder.GenerateLegacyOutput(outDirName.getValue());
+//		finder.GenerateLegacyOutput(outDirName.getValue());
 		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
 		std::ofstream lightDumpStream(outDirName.getValue() + "/light_graph.dot");
 		finder.Dump(dumpStream);

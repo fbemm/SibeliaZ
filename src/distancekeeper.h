@@ -23,7 +23,7 @@ namespace Sibelia
 			return distance_.count(v) > 0;
 		}
 
-		void Set(int64_t v, int64_t d)
+		void Set(int64_t v, int32_t d)
 		{
 			distance_[v] = d;
 		}

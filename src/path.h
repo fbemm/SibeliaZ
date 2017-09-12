@@ -6,7 +6,6 @@
 #include <algorithm>
 #include "distancekeeper.h"
 
-
 namespace Sibelia
 {
 	struct Assignment
@@ -541,7 +540,7 @@ namespace Sibelia
 		int64_t maxFlankingSize_;
 		bool checkConsistency_;
 		DistanceKeeper distanceKeeper_;
-		const JunctionStorage * storage_;		
+		const JunctionStorage * storage_;
 		std::vector<std::vector<Assignment> > & blockId_;		
 	};
 

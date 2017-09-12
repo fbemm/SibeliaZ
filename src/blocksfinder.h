@@ -19,7 +19,7 @@
 #include <tbb/blocked_range.h>
 #include <tbb/task_scheduler_init.h>
 
-#include "path.h"
+#include "lightpath.h"
 
 namespace Sibelia
 {
@@ -187,38 +187,6 @@ namespace Sibelia
 			scoreFullChains_ = false;
 		}
 
-		struct ProcessVertex
-		{
-		public:
-			Path currentPath;
-			BestPath bestPath;
-			BlocksFinder & finder;			
-			std::vector<int64_t> & shuffle;
-			
-			ProcessVertex(BlocksFinder & finder, std::vector<int64_t> & shuffle, Path & currentPath, BestPath & bestPath) :
-				finder(finder), shuffle(shuffle), currentPath(currentPath), bestPath(bestPath)
-			{
-			}
-
-			void operator()(tbb::blocked_range<size_t> & range) const
-			{				
-				for (size_t i = range.begin(); i != range.end(); i++)
-				{
-					finder.outMutex_.lock();
-
-					if (finder.count_++ % 1000 == 0)
-					{
-						std::cerr << finder.count_ << '\t' << shuffle.size() << std::endl;
-					}
-
-					finder.outMutex_.unlock();
-
-					finder.ExtendSeed(shuffle[i], const_cast<Path&>(currentPath), const_cast<BestPath&>(bestPath));
-				}
-				
-			}
-		};
-
 		void FindBlocks(int64_t minBlockSize, int64_t maxBranchSize, int64_t flankingThreshold, int64_t lookingDepth, int64_t sampleSize, int64_t threads, const std::string & debugOut)
 		{			
 			blocksFound_ = 0;
@@ -229,32 +197,9 @@ namespace Sibelia
 			flankingThreshold_ = flankingThreshold;
 			std::vector<std::vector<bool> > junctionInWork;
 			std::vector<std::pair<int64_t, int64_t> > bubbleCountVector;
-			blockId_.resize(storage_.GetChrNumber());
-			for (size_t i = 0; i < storage_.GetChrNumber(); i++)
-			{
-				blockId_[i].resize(storage_.GetChrVerticesCount(i));
-			}
 			
-			std::vector<int64_t> shuffle;
-			for (int64_t v = -storage_.GetVerticesNumber() + 1; v < storage_.GetVerticesNumber(); v++)
-			{
-				for (size_t i = 0; i < storage_.GetInstancesCount(v); i++)
-				{
-					if (storage_.GetJunctionInstance(v, i).IsPositiveStrand())
-					{
-						shuffle.push_back(v);
-						break;
-					}
-				}				
-			}
-
-			std::random_shuffle(shuffle.begin(), shuffle.end());		
-			BestPath bestPath;
-			Path currentPath(storage_, maxBranchSize_, minBlockSize_, flankingThreshold_, blockId_);
-			time_t mark = time(0);
-			count_ = 0;			
-			tbb::task_scheduler_init init(threads);
-			tbb::parallel_for(tbb::blocked_range<size_t>(0, shuffle.size()), ProcessVertex(*this, shuffle, currentPath, bestPath));
+			count_ = 0;
+			time_t mark = time(0);			
 			std::cout << "Time: " << time(0) - mark << std::endl;
 		}
 
@@ -352,7 +297,7 @@ namespace Sibelia
 			}
 		}
 
-
+		/*
 		void GenerateLegacyOutput(const std::string & outDir) const
 		{
 			BlockList instance;
@@ -390,7 +335,7 @@ namespace Sibelia
 			GenerateReport(instance, outDir + "/" + "coverage_report.txt");
 			ListBlocksIndices(instance, outDir + "/" + "blocks_coords.txt");
 			ListBlocksSequences(instance, outDir + "/" + "blocks_sequences.fasta");
-		}
+		}*/
 
 
 	private:
@@ -417,226 +362,6 @@ namespace Sibelia
 		void TryOpenFile(const std::string & fileName, std::ofstream & stream) const;
 		void ListChrs(std::ostream & out) const;
 		
-		bool TryFinalizeBlock(Path & currentPath)
-		{
-			if (currentPath.Score(true) > 0 && currentPath.MiddlePathLength() >= minBlockSize_ && currentPath.GoodInstances() > 1)
-			{
-				std::vector<Edge> nowPathBody;
-				if (mutex_.try_lock())
-				{
-					++blocksFound_;
-					syntenyPath_.push_back(std::vector<Edge>());
-					currentPath.DumpPath(nowPathBody);
-					for (auto pt : nowPathBody)
-					{
-						syntenyPath_.back().push_back(pt);
-					}
-
-					for (size_t i = 0; i < syntenyPath_.back().size() - 1; i++)
-					{
-						forbidden_.Add(syntenyPath_.back()[i]);
-					}
-
-					int64_t instanceCount = 0;
-					for (auto & instance : currentPath.Instances())
-					{
-						if (currentPath.IsGoodInstance(instance))
-						{
-							auto end = instance.Back() + 1;
-							for (auto it = instance.Front(); it != end; ++it)
-							{
-								int64_t idx = it.GetIndex();
-								int64_t maxidx = storage_.GetChrVerticesCount(it.GetChrId());
-								blockId_[it.GetChrId()][it.GetIndex()].block = it.IsPositiveStrand() ? blocksFound_ : -blocksFound_;
-								blockId_[it.GetChrId()][it.GetIndex()].instance = instanceCount;
-							}
-
-							instanceCount++;
-						}
-					}
-
-					mutex_.unlock();
-				}
-				
-				return true;
-			}
-
-			return false;
-		}
-		
-		void ExtendSeed(int64_t vid,
-			Path & currentPath,
-			BestPath & bestPath)
-		{						
-			while (true)
-			{
-				bestPath.Init();
-				currentPath.Init(vid);
-				while (true)
-				{
-					int64_t prevBestScore = bestPath.score_;
-					if (sampleSize_ > 0)
-					{
-						ExtendPathRandom(currentPath, bestPath, lookingDepth_);
-						if (bestPath.score_ <= prevBestScore)
-						{
-							break;
-						}
-					}
-					else
-					{
-						ExtendPathBackward(currentPath, bestPath, lookingDepth_);
-						bestPath.FixBackward(currentPath);
-						ExtendPathForward(currentPath, bestPath, lookingDepth_);
-						bestPath.FixForward(currentPath);
-						if (bestPath.score_ <= prevBestScore)
-						{
-							break;
-						}
-					}
-				}
-
-				if (!TryFinalizeBlock(currentPath))
-				{
-					break;
-				}
-			}			
-		}
-
-		void ExtendPathRandom(Path & currentPath, BestPath & bestPath, int maxDepth)
-		{
-			for (size_t sample = 0; sample < sampleSize_; sample++)
-			{
-				for (size_t d = 0; ; d++)
-				{
-					bool over = true;
-					for (size_t i = 0; i < 4 && d < lookingDepth_; i++)
-					{
-						Edge e = storage_.RandomForwardEdge(currentPath.GetEndVertex());
-						if (e.Valid() && !forbidden_.IsForbidden(e) && currentPath.PointPushBack(e))
-						{
-							over = false;
-							break;
-						}
-					}
-
-					if (over)
-					{
-						for (size_t i = 0; i < d; i++)
-						{
-							currentPath.PointPopBack();
-						}
-
-						break;
-					}
-					else
-					{
-						int64_t currentScore = currentPath.Score(scoreFullChains_);
-						if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
-						{
-							bestPath.UpdateForward(currentPath, currentScore);
-						}
-					}
-				}
-			}
-
-			bestPath.FixForward(currentPath);		
-		
-			for (size_t sample = 0; sample < sampleSize_; sample++)
-			{
-				for (size_t d = 0; ; d++)
-				{
-					bool over = true;
-					for (size_t i = 0; i < 4 && d < lookingDepth_; i++)
-					{
-						Edge e = storage_.RandomBackwardEdge(currentPath.GetStartVertex());
-						if (e.Valid() && !forbidden_.IsForbidden(e) && currentPath.PointPushFront(e))
-						{
-							over = false;
-							break;
-						}
-					}
-
-					if (over)
-					{
-						for (size_t i = 0; i < d; i++)
-						{
-							currentPath.PointPopFront();
-						}
-
-						break;
-					}
-					else
-					{
-						int64_t currentScore = currentPath.Score(scoreFullChains_);
-						if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
-						{
-							bestPath.UpdateBackward(currentPath, currentScore);
-						}
-					}
-				}
-			}
-
-			bestPath.FixBackward(currentPath);
-		}
-		
-		void ExtendPathForward(Path & currentPath, BestPath & bestPath, int maxDepth)
-		{
-			if (maxDepth > 0)
-			{
-				int64_t prevVertex = currentPath.GetEndVertex();
-				for (int64_t idx = 0; idx < storage_.OutgoingEdgesNumber(prevVertex); idx++)
-				{
-					Edge e = storage_.OutgoingEdge(prevVertex, idx);
-					if (!forbidden_.IsForbidden(e))
-					{						
-						if (currentPath.PointPushBack(e))
-						{
-#ifdef _DEBUG_OUT
-							currentPath.DebugOut(std::cerr);
-#endif
-							int64_t currentScore = currentPath.Score(scoreFullChains_);							
-							if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
-							{
-								bestPath.UpdateForward(currentPath, currentScore);
-							}
-
-							ExtendPathForward(currentPath, bestPath, maxDepth - 1);
-							currentPath.PointPopBack();
-						}
-					}
-				}
-			}
-		}
-		
-		void ExtendPathBackward(Path & currentPath, BestPath & bestPath, int maxDepth)
-		{
-			if (maxDepth > 0)
-			{
-				int64_t prevVertex = currentPath.GetStartVertex();
-				for (int64_t idx = 0; idx < storage_.IngoingEdgesNumber(prevVertex); idx++)
-				{
-					Edge e = storage_.IngoingEdge(prevVertex, idx);
-					if (!forbidden_.IsForbidden(e))
-					{	
-						if (currentPath.PointPushFront(e))
-						{
-#ifdef _DEBUG_OUT
-							currentPath.DebugOut(std::cerr);
-#endif
-							int64_t currentScore = currentPath.Score(scoreFullChains_);						
-							if (currentScore > bestPath.score_ && currentPath.Instances().size() > 1)
-							{
-								bestPath.UpdateBackward(currentPath, currentScore);
-							}					
-
-							ExtendPathBackward(currentPath, bestPath, maxDepth - 1);
-							currentPath.PointPopFront();
-						}
-					}
-				}
-			}		
-		}
 
 		int64_t k_;
 		int64_t count_;
@@ -652,7 +377,7 @@ namespace Sibelia
 		tbb::mutex outMutex_;
 		tbb::spin_rw_mutex mutex_;
 		std::vector<std::vector<Edge> > syntenyPath_;
-		std::vector<std::vector<Assignment> > blockId_;	
+		//std::vector<std::vector<Assignment> > blockId_;	
 	};
 }
 
