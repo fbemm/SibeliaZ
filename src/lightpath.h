@@ -1,14 +1,15 @@
 #ifndef _LIGHT_PATH_H_
 #define _LIGHT_PATH_H_
 
-#include "distancekeeper.h"
+#include <functional>
+#include "edgestorage.h"
 
 namespace Sibelia
 {
 	class LightPath
 	{
 	public:
-		LightPath(const JunctionStorage & storage,
+		LightPath(const EdgeStorage & storage,
 			int64_t maxBranchSize,
 			int64_t minBlockSize,
 			int64_t maxFlankingSize) :
@@ -18,10 +19,33 @@ namespace Sibelia
 
 		}
 
+		void Init(Edge origin)
+		{
+			body_.clear();			
+			body_.push_back(Point(origin, 0));
+		}
+
 		bool TakeStep()
 		{
-			return true;
+			while (body_.back().EndDistance() < minBlockSize_)
+			{
+				Edge e = storage_->GreedyOutEdge(body_.back().Edge().GetEndVertex());
+				if (!e.Valid())
+				{
+					
+				}
+			}
+
+			
+			while(body_.)
+			if (e.Valid())
+			{
+				body_.push_back(Point(e, body_.back().StartDistance() + body_.back().Edge().GetLength()));
+
+			}
 		}
+
+	
 
 	private:
 

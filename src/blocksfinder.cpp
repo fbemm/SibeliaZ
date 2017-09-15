@@ -25,7 +25,6 @@ namespace Sibelia
 		}
 	}
 
-
 	bool compareById(const BlockInstance & a, const BlockInstance & b)
 	{
 		return CompareBlocks(a, b, &BlockInstance::GetBlockId);

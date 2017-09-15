@@ -182,7 +182,7 @@ namespace Sibelia
 	{
 	public:
 
-		BlocksFinder(JunctionStorage & storage, size_t k) : storage_(storage), k_(k), forbidden_(storage)
+		BlocksFinder(EdgeStorage & storage, size_t k) : storage_(storage), k_(k), forbidden_(storage)
 		{
 			scoreFullChains_ = false;
 		}
@@ -195,9 +195,32 @@ namespace Sibelia
 			minBlockSize_ = minBlockSize;
 			maxBranchSize_ = maxBranchSize;
 			flankingThreshold_ = flankingThreshold;
-			std::vector<std::vector<bool> > junctionInWork;
-			std::vector<std::pair<int64_t, int64_t> > bubbleCountVector;
 			
+			std::vector<int64_t> shuffle;
+			for (int64_t v = -storage_.GetVerticesNumber() + 1; v < storage_.GetVerticesNumber(); v++)
+			{
+				for (size_t i = 0; i < storage_.GetInstancesCount(v); i++)
+				{
+					if (storage_.GetJunctionInstance(v, i).IsPositiveStrand())
+					{
+						shuffle.push_back(v);
+						break;
+					}
+				}
+			}
+
+			LightPath lightPath(storage_, maxBranchSize_, minBlockSize_, flankingThreshold_);
+			for (int64_t v : shuffle)
+			{
+				for (int64_t eid = 0; eid < storage_.IngoingEdgesNumber(v); eid++)
+				{
+					lightPath.Init(storage_.IngoingEdge(v, eid));
+					while (lightPath.TakeStep())
+					{						
+					}
+				}
+			}
+
 			count_ = 0;
 			time_t mark = time(0);			
 			std::cout << "Time: " << time(0) - mark << std::endl;
@@ -367,15 +390,13 @@ namespace Sibelia
 		int64_t count_;
 		int64_t sampleSize_;
 		int64_t blocksFound_;
-		Forbidden forbidden_;
 		bool scoreFullChains_;		
 		int64_t lookingDepth_;		
 		int64_t minBlockSize_;
 		int64_t maxBranchSize_;
 		int64_t flankingThreshold_;
-		JunctionStorage & storage_;
+		EdgeStorage & storage_;
 		tbb::mutex outMutex_;
-		tbb::spin_rw_mutex mutex_;
 		std::vector<std::vector<Edge> > syntenyPath_;
 		//std::vector<std::vector<Assignment> > blockId_;	
 	};
