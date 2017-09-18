@@ -24,7 +24,7 @@ namespace Sibelia
 			body_.clear();			
 			body_.push_back(Point(origin, 0));
 		}
-
+		/*
 		bool TakeStep()
 		{
 			while (body_.back().EndDistance() < minBlockSize_)
@@ -44,7 +44,7 @@ namespace Sibelia
 
 			}
 		}
-
+		*/
 	
 
 	private:
@@ -89,7 +89,7 @@ namespace Sibelia
 		int64_t minBlockSize_;
 		int64_t maxBranchSize_;
 		int64_t maxFlankingSize_;
-		const JunctionStorage * storage_;
+		const EdgeStorage * storage_;
 		std::vector<Point> body_;
 
 		int64_t CalculateFlow()

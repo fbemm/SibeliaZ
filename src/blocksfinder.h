@@ -182,7 +182,7 @@ namespace Sibelia
 	{
 	public:
 
-		BlocksFinder(EdgeStorage & storage, size_t k) : storage_(storage), k_(k), forbidden_(storage)
+		BlocksFinder(EdgeStorage & storage, size_t k) : storage_(storage), k_(k)
 		{
 			scoreFullChains_ = false;
 		}
@@ -197,17 +197,7 @@ namespace Sibelia
 			flankingThreshold_ = flankingThreshold;
 			
 			std::vector<int64_t> shuffle;
-			for (int64_t v = -storage_.GetVerticesNumber() + 1; v < storage_.GetVerticesNumber(); v++)
-			{
-				for (size_t i = 0; i < storage_.GetInstancesCount(v); i++)
-				{
-					if (storage_.GetJunctionInstance(v, i).IsPositiveStrand())
-					{
-						shuffle.push_back(v);
-						break;
-					}
-				}
-			}
+			
 
 			LightPath lightPath(storage_, maxBranchSize_, minBlockSize_, flankingThreshold_);
 			for (int64_t v : shuffle)
@@ -215,7 +205,7 @@ namespace Sibelia
 				for (int64_t eid = 0; eid < storage_.IngoingEdgesNumber(v); eid++)
 				{
 					lightPath.Init(storage_.IngoingEdge(v, eid));
-					while (lightPath.TakeStep())
+					//while (lightPath.TakeStep())
 					{						
 					}
 				}
@@ -226,69 +216,10 @@ namespace Sibelia
 			std::cout << "Time: " << time(0) - mark << std::endl;
 		}
 
-		void Dump(std::ostream & out) const
-		{
-			out << "digraph G\n{\nrankdir = LR" << std::endl;
-			for (size_t i = 0; i < storage_.GetChrNumber(); i++)
-			{
-				for (auto it = storage_.Begin(i); it != storage_.End(i) - 1; ++it)
-				{
-					auto jt = it + 1;
-					out << it.GetVertexId(&storage_) << " -> " << jt.GetVertexId(&storage_)
-						<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\" color=blue]\n";
-					out << jt.Reverse().GetVertexId(&storage_) << " -> " << it.Reverse().GetVertexId(&storage_)
-						<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\" color=red]\n";
-				}
-			}
-
-			for (size_t i = 0; i < syntenyPath_.size(); i++)
-			{
-				for (size_t j = 0; j < syntenyPath_[i].size(); j++)
-				{
-					Edge e = syntenyPath_[i][j];
-					out << e.GetStartVertex() << " -> " << e.GetEndVertex() <<
-						"[label=\"" << e.GetChar() << ", " << i + 1 << "\" color=green]\n";
-					e = e.Reverse();
-					out << e.GetStartVertex() << " -> " << e.GetEndVertex() <<
-						"[label=\"" << e.GetChar() << ", " << -(int64_t(i + 1)) << "\" color=green]\n";
-				}
-			}
-
-			out << "}" << std::endl;
-		}
-
-		void DumpLight(std::ostream & out) const
-		{
-			out << "digraph G\n{\nrankdir = LR" << std::endl;
-			std::vector<Edge> total;
-			for (int64_t i = -storage_.GetVerticesNumber() + 1; i < storage_.GetVerticesNumber(); i++)
-			{
-				for(size_t j = 0; j < storage_.IngoingEdgesNumber(i); j++)
-				{					
-					Edge e = storage_.IngoingEdge(i, j);
-					total.push_back(e);
-				}
-
-				for (size_t j = 0; j < storage_.OutgoingEdgesNumber(i); j++)
-				{
-					Edge e = storage_.OutgoingEdge(i, j);
-					total.push_back(e);
-				}
-			}
-
-			std::sort(total.begin(), total.end());
-			total.erase(std::unique(total.begin(), total.end()), total.end());
-			
-			for (Edge & e : total)
-			{				
-				out << e.GetStartVertex() << " -> " << e.GetEndVertex() << "[label=\"" << e.GetChar() << ", " << e.GetCapacity() << "\"]" << std::endl;
-			}
-
-			out << "}" << std::endl;
-		}
+		
 
 		void ListBlocksSequences(const BlockList & block, const std::string & fileName) const
-		{
+		{/*
 			std::ofstream out;
 			TryOpenFile(fileName, out);
 			std::vector<IndexPair> group;
@@ -317,12 +248,12 @@ namespace Sibelia
 
 					out << std::endl;
 				}
-			}
+			}*/
 		}
 
-		/*
+		
 		void GenerateLegacyOutput(const std::string & outDir) const
-		{
+		{/*
 			BlockList instance;
 			std::vector<std::vector<bool> > covered(storage_.GetChrNumber());
 			for (size_t i = 0; i < covered.size(); i++)
@@ -358,7 +289,8 @@ namespace Sibelia
 			GenerateReport(instance, outDir + "/" + "coverage_report.txt");
 			ListBlocksIndices(instance, outDir + "/" + "blocks_coords.txt");
 			ListBlocksSequences(instance, outDir + "/" + "blocks_sequences.fasta");
-		}*/
+			*/
+		}
 
 
 	private:

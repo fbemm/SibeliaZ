@@ -140,9 +140,9 @@ namespace Sibelia
 	{
 		return std::make_pair(GetBlockId(), std::make_pair(GetChrId(), GetStart())) < std::make_pair(toCompare.GetBlockId(), std::make_pair(toCompare.GetChrId(), toCompare.GetStart()));
 	}
-
+	
 	void BlocksFinder::GenerateReport(const BlockList & block, const std::string & fileName) const
-	{
+	{/*
 		std::ofstream out;
 		TryOpenFile(fileName, out);
 		GroupedBlockList sepBlock;
@@ -183,12 +183,13 @@ namespace Sibelia
 			out << std::endl;
 		}
 
-		out << DELIMITER << std::endl;
+		out << DELIMITER << std::endl;*/
 	}
-
+	
 	std::vector<double> BlocksFinder::CalculateCoverage(GroupedBlockList::const_iterator start, GroupedBlockList::const_iterator end) const
-	{
+	{		
 		std::vector<double> ret;
+		/*
 		std::vector<bool> cover;
 		double totalBp = 0;
 		double totalCoveredBp = 0;
@@ -213,6 +214,7 @@ namespace Sibelia
 		}
 
 		ret.insert(ret.begin(), totalCoveredBp / totalBp * 100);
+		*/
 		return ret;
 	}
 
@@ -255,29 +257,6 @@ namespace Sibelia
 		OutputBlocks(block, out);
 	}
 
-	void BlocksFinder::ListChromosomesAsPermutations(const BlockList & block, const std::string & fileName) const
-	{
-		std::ofstream out;
-		TryOpenFile(fileName, out);
-		std::vector<IndexPair> group;
-		BlockList blockList = block;
-		GroupBy(blockList, compareByChrId, std::back_inserter(group));
-		for (std::vector<IndexPair>::iterator it = group.begin(); it != group.end(); ++it)
-		{
-			out.setf(std::ios_base::showpos);
-			size_t length = it->second - it->first;
-			size_t chr = blockList[it->first].GetChrId();
-			out << '>' << storage_.GetChrDescription(chr) << std::endl;
-			std::sort(blockList.begin() + it->first, blockList.begin() + it->second);
-			for (auto jt = blockList.begin() + it->first; jt < blockList.begin() + it->first + length; ++jt)
-			{
-				out << jt->GetSignedBlockId() << " ";
-			}
-
-			out << "$" << std::endl;
-		}
-	}
-
 
 	void BlocksFinder::TryOpenFile(const std::string & fileName, std::ofstream & stream) const
 	{
@@ -287,15 +266,15 @@ namespace Sibelia
 			throw std::runtime_error(("Cannot open file " + fileName).c_str());
 		}
 	}
-
+	
 	void BlocksFinder::ListChrs(std::ostream & out) const
-	{
+	{/*
 		out << "Seq_id\tSize\tDescription" << std::endl;
 		for (size_t i = 0; i < storage_.GetChrNumber(); i++)
 		{
 			out << i + 1 << '\t' << storage_.GetChrSequence(i).size() << '\t' << storage_.GetChrDescription(i) << std::endl;
 		}
 
-		out << DELIMITER << std::endl;
+		out << DELIMITER << std::endl;*/
 	}
 }

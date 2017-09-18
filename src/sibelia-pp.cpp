@@ -142,7 +142,7 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 
-		Sibelia::JunctionStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
+		Sibelia::EdgeStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
 		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
 		finder.FindBlocks(minBlockSize.getValue(),
 			maxBranchSize.getValue(),
@@ -154,8 +154,7 @@ int main(int argc, char * argv[])
 //		finder.GenerateLegacyOutput(outDirName.getValue());
 		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
 		std::ofstream lightDumpStream(outDirName.getValue() + "/light_graph.dot");
-		finder.Dump(dumpStream);
-		finder.DumpLight(lightDumpStream);
+		storage.Dump(lightDumpStream);
 	}
 	catch (TCLAP::ArgException & e)
 	{
