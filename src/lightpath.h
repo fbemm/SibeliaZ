@@ -77,7 +77,6 @@ namespace Sibelia
 			Init(origin);
 			int64_t bestFlow = 0;
 			while (Length() < minBlockSize_ && PushBack());
-			
 			do 
 			{
 				bestFlow = std::max(bestFlow, CalculateFlow());
@@ -90,70 +89,20 @@ namespace Sibelia
 			
 		}
 
-		void FinalizeFlow(EdgeStorage & storage)
+		void FinalizeFlow(EdgeStorage & storage) const
 		{
 
 		}
-
-		/*
-		bool TakeStep()
-		{
-			while (body_.back().EndDistance() < minBlockSize_)
-			{
-				Edge e = storage_->GreedyOutEdge(body_.back().Edge().GetEndVertex());
-				if (!e.Valid())
-				{
-					
-				}
-			}
-
-			
-			while(body_.)
-			if (e.Valid())
-			{
-				body_.push_back(Point(e, body_.back().StartDistance() + body_.back().Edge().GetLength()));
-
-			}
-		}
-		*/
-	
 
 	private:
 	
-		int64_t origin_;
-		int64_t minChainSize_;
-		int64_t minBlockSize_;
-		int64_t maxBranchSize_;
-		int64_t maxFlankingSize_;
-		const EdgeStorage * storage_;
-		std::vector<Point> body_;
-
-		void Init(int64_t origin)
-		{
-			body_.clear();
-			origin_ = origin;
-		}
-
-		bool PushBack()
-		{
-			int64_t distance = body_.empty() ? 0 : body_.back().EndDistance();
-			int64_t end = body_.empty() ? origin_ : body_.back().Edge().GetEndVertex();
-			Edge e = storage_->RandomOutEdge(end);
-			if (e.Valid())
-			{
-				body_.push_back(Point(e, distance));
-				return true;
-			}
-
-			return false;			
-		}
-
 		struct State
 		{
 			int64_t cost;
 			int64_t vertex;
 			int64_t prevBodyVertex;
-			State(int64_t vertex, int64_t prevBodyVertex, int64_t cost) : vertex(vertex), prevBodyVertex(prevBodyVertex), cost(cost)
+			Edge e;
+			State(int64_t vertex, int64_t prevBodyVertex, Edge e, int64_t cost) : vertex(vertex), e(e), prevBodyVertex(prevBodyVertex), cost(cost)
 			{
 
 			}
@@ -165,19 +114,66 @@ namespace Sibelia
 		};
 
 		struct StateHash
-		{			
+		{
 			std::hash<int64_t> f;
 			int64_t operator()(const State & state) const
 			{
 				return f(state.vertex | state.prevBodyVertex << (int64_t(32)));
 			}
 		};
+
+		int64_t origin_;
+		int64_t minChainSize_;
+		int64_t minBlockSize_;
+		int64_t maxBranchSize_;
+		int64_t maxFlankingSize_;
+		std::vector<Point> body_;
+		const EdgeStorage * storage_;
+		std::unordered_map<int64_t, int64_t> distance_;
+		std::unordered_map<State, int64_t, StateHash> minCost_;
+		std::unordered_map<Edge, int64_t, EdgeHash> currentFlow_;		
+
+		void Init(int64_t origin)
+		{
+			body_.clear();
+			origin_ = origin;
+			distance_[origin_] = 0;
+		}
+
+		bool PushBack()
+		{
+			int64_t distance = body_.empty() ? 0 : body_.back().EndDistance();
+			int64_t end = body_.empty() ? origin_ : body_.back().Edge().GetEndVertex();
+			Edge e = storage_->RandomOutEdge(end);
+			if (e.Valid())
+			{
+				body_.push_back(Point(e, distance));
+				distance_[e.GetEndVertex()] = body_.back().EndDistance();
+				return true;
+			}
+
+			return false;			
+		}		
 	
 		int64_t CalculateFlow()
 		{
+			minCost_.clear();
+			currentFlow_.clear();
 			std::priority_queue<State> q;
-			std::unordered_map<int64_t, int64_t> currentFlow;
-			std::unordered_map<State, int64_t, StateHash> minCost;
+			q.push(State(origin_, origin_, Edge(), 0));
+			while (!q.empty())
+			{
+				State now = q.top();
+				q.pop();
+				if (distance_[now.vertex] < body_.back().EndDistance() - maxBranchSize_)
+				{
+
+				}
+				else
+				{
+
+				}
+			}
 		}
 
 	};

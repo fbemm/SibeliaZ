@@ -108,7 +108,7 @@ namespace Sibelia
 		void Inc()
 		{
 			capacity_++;
-		}
+		}		
 
 	private:
 		int64_t startVertex_;
@@ -118,6 +118,18 @@ namespace Sibelia
 		int32_t flow_;
 		int32_t length_;
 		int32_t capacity_;
+	};
+
+	class EdgeHash
+	{
+	public:
+		std::hash<int64_t> f;
+
+		int64_t operator()(const Edge & e) const
+		{
+			int64_t value = e.GetStartVertex() | (int64_t(e.GetChar()) << int64_t(32));
+			return f(value);
+		}
 	};
 
 	class EdgeStorage

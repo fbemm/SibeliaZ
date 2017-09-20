@@ -11,18 +11,6 @@ namespace Sibelia
 		int64_t threads,
 		std::vector<std::vector<Edge> > & ret)
 	{
-
-	}
-
-	void FindLightPaths(EdgeStorage & storage,
-		int64_t minBlockSize,
-		int64_t maxBranchSize,
-		int64_t maxFlankingSize,
-		int64_t lookingDepth,
-		int64_t sampleSize,
-		int64_t threads,
-		std::vector<std::vector<Edge> > & ret)
-	{
 		LightPath path(storage, minBlockSize, maxBranchSize, maxFlankingSize);
 		for (int64_t v : storage.ValidJunctions())
 		{
