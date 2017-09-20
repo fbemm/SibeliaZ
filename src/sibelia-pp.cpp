@@ -1,6 +1,6 @@
 #include <tclap/CmdLine.h>
 
-#include "blocksfinder.h"
+#include "lightpath.h"
 
 size_t Atoi(const char * str)
 {
@@ -142,19 +142,27 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 
+		std::vector<std::vector<Sibelia::Edge> > lightSyntenyPath;
 		Sibelia::EdgeStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
-		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
-		finder.FindBlocks(minBlockSize.getValue(),
+		Sibelia::FindLightPaths(storage, 
+			minBlockSize.getValue(),
 			maxBranchSize.getValue(),
 			maxFlankingSize.getValue(),
 			lookingDepth.getValue(),
 			sampleSize.getValue(),
 			threads.getValue(),
-			outDirName.getValue() + "/paths.txt");
+			lightSyntenyPath);
+//		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
+/*		finder.FindBlocks(minBlockSize.getValue(),
+			maxBranchSize.getValue(),
+			maxFlankingSize.getValue(),
+			lookingDepth.getValue(),
+			sampleSize.getValue(),
+			threads.getValue(),
+			outDirName.getValue() + "/paths.txt");*/
 //		finder.GenerateLegacyOutput(outDirName.getValue());
-		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
 		std::ofstream lightDumpStream(outDirName.getValue() + "/light_graph.dot");
-		storage.Dump(lightDumpStream);
+		storage.Dump(lightDumpStream, lightSyntenyPath);
 	}
 	catch (TCLAP::ArgException & e)
 	{

@@ -19,8 +19,8 @@ namespace Sibelia
 	public:
 		Edge() : startVertex_(INT64_MAX), endVertex_(INT64_MAX) {}
 
-		Edge(int64_t startVertex, int64_t endVertex, char ch, char revCh, int32_t length, int32_t capacity) :
-			startVertex_(startVertex), endVertex_(endVertex), ch_(ch), revCh_(revCh), length_(length), capacity_(capacity)
+		Edge(int64_t startVertex, int64_t endVertex, char ch, char revCh, int32_t length, int32_t capacity, int32_t flow) :
+			startVertex_(startVertex), endVertex_(endVertex), ch_(ch), revCh_(revCh), length_(length), capacity_(capacity), flow_(flow)
 		{
 
 		}
@@ -62,7 +62,7 @@ namespace Sibelia
 
 		Edge Reverse() const
 		{
-			return Edge(-endVertex_, -startVertex_, revCh_, ch_, length_, capacity_);
+			return Edge(-endVertex_, -startVertex_, revCh_, ch_, length_, capacity_, flow_);
 		}
 
 		char GetRevChar() const
@@ -117,7 +117,7 @@ namespace Sibelia
 		char revCh_;
 		int32_t flow_;
 		int32_t length_;
-		int32_t capacity_;		
+		int32_t capacity_;
 	};
 
 	class EdgeStorage
@@ -141,32 +141,59 @@ namespace Sibelia
 		
 		Edge IngoingEdge(int64_t vertexId, int64_t idx) const
 		{
-			return edgeList_[ingoingEdge_[vertexId + GetMaxId()][idx]];
+			const Edge & e = edgeList_[ingoingEdge_[vertexId + GetMaxId()][idx]];
+			if (e.GetEndVertex() == vertexId)
+			{
+				return e;
+			}
+
+			return e.Reverse();
 		}
 
 		Edge OutgoingEdge(int64_t vertexId, int64_t idx) const
 		{
-			return edgeList_[outgoingEdge_[vertexId + GetMaxId()][idx]];
+			const Edge & e = edgeList_[outgoingEdge_[vertexId + GetMaxId()][idx]];
+			if (e.GetStartVertex() == vertexId)
+			{
+				return e;
+			}
+
+			return e.Reverse();
 		}
 
-		Edge GreedyOutEdge(int64_t vertexId) const
+		Edge RandomOutEdge(int64_t v) const
 		{
-			int64_t vid = vertexId + GetMaxId();
-			if (outgoingEdge_[vid].empty())
+			int64_t size = OutgoingEdgesNumber(v);
+			if (v == 0)
 			{
 				return Edge();
 			}
-						
-			size_t idx = *std::max_element(outgoingEdge_[vid].begin(), outgoingEdge_[vid].end(), std::bind(&EdgeStorage::OutEdgeResidualCapacity, this, vertexId, std::placeholders::_1));
-			return edgeList_[outgoingEdge_[vid][idx]];
+
+			int64_t idx = rand() % size;
+			return OutgoingEdge(v, idx);
 		}
 
-		void Dump(std::ostream & out) const
+		const std::vector<int64_t>& ValidJunctions() const
+		{
+			return validJunctions_;
+		}
+
+		void Dump(std::ostream & out, const std::vector<std::vector<Edge> > & syntenyPath) const
 		{
 			out << "digraph G\n{\nrankdir = LR" << std::endl;
-			for (const Edge & e : edgeList_)
+			for (Edge e : edgeList_)
 			{
-				out << e.GetStartVertex() << " -> " << e.GetEndVertex() << "[label=\"" << e.GetChar() << ", " << e.GetCapacity() << "\"]" << std::endl;
+				out << e.GetStartVertex() << " -> " << e.GetEndVertex() << "[label=\"" << e.GetChar() << ", " << e.GetCapacity() << "/" << e.GetFlow() << "\"]" << std::endl;
+				e = e.Reverse();
+				out << e.GetStartVertex() << " -> " << e.GetEndVertex() << "[label=\"" << e.GetChar() << ", " << e.GetCapacity() << "/" << e.GetFlow() << "\"]" << std::endl;
+			}
+
+			for (size_t i = 0; i < syntenyPath.size(); i++)
+			{
+				for (auto & e : syntenyPath[i])
+				{
+					out << e.GetStartVertex() << " -> " << e.GetEndVertex() << "[label=\"" << e.GetChar() << ", " << i << ", color=green\"]" << std::endl;
+				}
 			}
 
 			out << "}" << std::endl;
@@ -189,28 +216,30 @@ namespace Sibelia
 				TwoPaCo::JunctionPositionReader reader(inFileName);
 				for (TwoPaCo::JunctionPosition junction; reader.NextJunctionPosition(junction);)
 				{
-					maxId_ = max(maxId_, junction.GetId());
-					validJunctions_.push_back(junction.GetId());
-				}
-
-				std::sort(validJunctions_.begin(), validJunctions_.end());
-				validJunctions_.erase(std::unique(validJunctions_.begin(), validJunctions_.end()), validJunctions_.end());
+					maxId_ = max(maxId_, junction.GetId());					
+				}				
 			}
 
 			ingoingEdge_.resize(maxId_ * 2 + 1);
 			outgoingEdge_.resize(maxId_ * 2 + 1);
+			std::vector<bool> seen(maxId_ * 2 + 1, false);
 
 			TwoPaCo::JunctionPosition prevJunction;
-			TwoPaCo::JunctionPositionReader reader(inFileName);
+			TwoPaCo::JunctionPositionReader reader(inFileName);			
 			for (TwoPaCo::JunctionPosition junction; reader.NextJunctionPosition(junction);)
 			{				
 				if (junction.GetChr() == prevJunction.GetChr())
 				{
 					char ch = sequence[prevJunction.GetChr()][prevJunction.GetPos() + k_];
 					char revCh = TwoPaCo::DnaChar::ReverseChar(sequence[junction.GetChr()][junction.GetPos() - 1]);
-					Edge e(prevJunction.GetId(), junction.GetId(), ch, revCh, junction.GetPos() - prevJunction.GetPos(), 1);
-					AddEdge(e);
-					AddEdge(e.Reverse());
+					Edge e(prevJunction.GetId(), junction.GetId(), ch, revCh, junction.GetPos() - prevJunction.GetPos(), 1, 0);
+					AddEdge(e);					
+				}
+
+				if (!seen[junction.GetId() + maxId_])
+				{
+					validJunctions_.push_back(junction.GetId());
+					seen[junction.GetId() + maxId_] = true;
 				}
 
 				prevJunction = junction;
@@ -237,16 +266,13 @@ namespace Sibelia
 					return;
 				}
 			}
-
+			
 			ingoingEdge_[edge.GetEndVertex() + maxId_].push_back(edgeList_.size());
 			outgoingEdge_[edge.GetStartVertex() + maxId_].push_back(edgeList_.size());
+			Edge edgeReverse = edge.Reverse();
+			ingoingEdge_[edgeReverse.GetEndVertex() + maxId_].push_back(edgeList_.size());
+			outgoingEdge_[edgeReverse.GetStartVertex() + maxId_].push_back(edgeList_.size());
 			edgeList_.push_back(edge);
-		}
-
-		int64_t OutEdgeResidualCapacity(int64_t v, int64_t idx) const
-		{
-			const Edge & e = edgeList_[outgoingEdge_[v + maxId_][idx]];
-			return e.GetCapacity() - e.GetFlow();
 		}
 
 		int64_t k_;
@@ -254,7 +280,7 @@ namespace Sibelia
 		std::vector<Edge> edgeList_;
 		std::vector<int64_t> validJunctions_;
 		std::vector<std::vector<size_t> > ingoingEdge_;
-		std::vector<std::vector<size_t> > outgoingEdge_;
+		std::vector<std::vector<size_t> > outgoingEdge_;		
 	};
 }
 
