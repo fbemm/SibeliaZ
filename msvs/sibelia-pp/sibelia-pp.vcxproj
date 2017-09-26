@@ -73,8 +73,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Soft\Dev\tbb2017_20170412oss\include;C:\Projects\Sibelia-pp\src;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb2017_20170412oss\lib\intel64\vc14;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\lemon-1.3.1d\include;C:\Soft\Dev\tbb2017_20170412oss\include;C:\Projects\Sibelia-pp\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\lemon-1.3.1d\lib;C:\Soft\Dev\tbb2017_20170412oss\lib\intel64\vc14;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -82,8 +82,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>C:\Soft\Dev\tbb2017_20170412oss\include;C:\Projects\Sibelia-pp\src;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Soft\Dev\tbb2017_20170412oss\lib\intel64\vc14;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Soft\Dev\lemon-1.3.1r\include;C:\Soft\Dev\tbb2017_20170412oss\include;C:\Projects\Sibelia-pp\src;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Soft\Dev\lemon-1.3.1r\lib;C:\Soft\Dev\tbb2017_20170412oss\lib\intel64\vc14;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -110,6 +110,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>lemon.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -145,6 +146,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>lemon.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -155,7 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\dnachar.h" />
-    <ClInclude Include="..\..\src\edgestorage.h" />
+    <ClInclude Include="..\..\src\graphstorage.h" />
     <ClInclude Include="..\..\src\lightpath.h" />
     <ClInclude Include="..\..\src\outputgenerator.h" />
     <ClInclude Include="..\..\src\blocksfinder.h" />

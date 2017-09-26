@@ -143,7 +143,7 @@ int main(int argc, char * argv[])
 		cmd.parse(argc, argv);
 
 		std::vector<std::vector<Sibelia::Edge> > lightSyntenyPath;
-		Sibelia::EdgeStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
+		Sibelia::GraphStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
 		Sibelia::FindLightPaths(storage, 
 			minBlockSize.getValue(),
 			maxBranchSize.getValue(),
@@ -162,7 +162,7 @@ int main(int argc, char * argv[])
 			outDirName.getValue() + "/paths.txt");*/
 //		finder.GenerateLegacyOutput(outDirName.getValue());
 		std::ofstream lightDumpStream(outDirName.getValue() + "/light_graph.dot");
-		storage.Dump(lightDumpStream, lightSyntenyPath);
+		storage.DumpLight(lightDumpStream);
 	}
 	catch (TCLAP::ArgException & e)
 	{
