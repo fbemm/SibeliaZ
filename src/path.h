@@ -44,7 +44,7 @@ namespace Sibelia
 		void Init(int64_t vid)
 		{
 			origin_ = vid;			
-			distanceKeeper_.Set(vid, 0);
+			distanceKeeper_.Set(vid, 0);			
 			for (size_t i = 0; i < storage_->GetInstancesCount(vid); i++)
 			{
 				JunctionStorage::JunctionIterator it = storage_->GetJunctionInstance(vid, i);

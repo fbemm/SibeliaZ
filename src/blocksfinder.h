@@ -224,9 +224,10 @@ namespace Sibelia
 					std::cerr << count << '\t' << shuffle.size() << std::endl;
 				}
 
-				ExtendSeed(vid, currentPath, bestPath, debugStream);			
+				Classify(vid, currentPath, bestPath, debugStream);			
 			}
 
+			std::cout << source_.size() << ' ' << sink_.size() << ' ' << both_.size() << std::endl;
 			std::cout << "Time: " << time(0) - mark << std::endl;
 		}
 
@@ -400,111 +401,66 @@ namespace Sibelia
 
 			return false;
 		}
-
-		void ExtendSeedRandom(int64_t vid, Path & currentPath)
-		{			
-			while (true)
-			{
-				bool success = false;				
-				for (size_t it = 0; it < sampleSize_; it++)
-				{
-					currentPath.Init(vid);
-					bool canExtend = true;
-					int64_t prevScore = 0;
-					while (canExtend)
-					{
-						canExtend = false;
-						if (rand() % 2)
-						{
-							for (size_t i = 0; i < 4; i++)
-							{
-								Edge e = storage_.RandomForwardEdge(currentPath.GetEndVertex());
-								if (e.Valid() && currentPath.PointPushBack(e))
-								{
-									if (prevScore < currentPath.Score(scoreFullChains_))
-									{										
-										canExtend = true;
-										break;
-									}
-									else
-									{
-										currentPath.PointPopBack();										
-									}	
-								}
-							}
-						}
-						else
-						{
-							for (size_t i = 0; i < 4; i++)
-							{
-								Edge e = storage_.RandomBackwardEdge(currentPath.GetStartVertex());
-								if (e.Valid() && currentPath.PointPushFront(e))
-								{
-									if (prevScore < currentPath.Score(scoreFullChains_))
-									{
-										canExtend = true;
-										break;
-									}
-									else
-									{
-										currentPath.PointPopFront();
-									}
-								}
-							}
-						}
-
-						prevScore = currentPath.Score(scoreFullChains_);
-					}
-
-					if (TryFinalizeBlock(currentPath))
-					{
-						success = true;
-					}
-
-					currentPath.Clean();
-				}
-
-				if (!success)
-				{
-					break;
-				}
-			}
-
-		}
 	
-		void ExtendSeed(int64_t vid,
+		void Classify(int64_t vid,
 			Path & currentPath,
 			BestPath & bestPath,
 			std::ostream & debugOut)
 		{			
-			bestPath.Init();
-			currentPath.Init(vid);
-			while (true)
-			{				
-				int64_t prevBestScore = bestPath.score_;
-				if (sampleSize_ > 0)
+			
+			
+			bool sink = false;
+			bool source = false;
+			
+			{
+				bestPath.Init();
+				currentPath.Init(vid);
+				ExtendPathBackward(currentPath, bestPath, lookingDepth_);
+				if (bestPath.score_ > 0)
 				{
-					ExtendPathRandom(currentPath, bestPath, lookingDepth_);
-					if (bestPath.score_ <= prevBestScore)
-					{
-						break;
-					}
-				}
-				else
-				{
-					ExtendPathBackward(currentPath, bestPath, lookingDepth_);
 					bestPath.FixBackward(currentPath);
 					ExtendPathForward(currentPath, bestPath, lookingDepth_);
-					bestPath.FixForward(currentPath);
-					if (bestPath.score_ <= prevBestScore)
+					if (bestPath.score_ == currentPath.Score())
 					{
-						break;
+						sink = true;
 					}
 				}
+
+				currentPath.Clean();
+				
 			}
 
-			TryFinalizeBlock(currentPath);
-			currentPath.Clean();
+			{
+				bestPath.Init();
+				currentPath.Init(vid);
+				ExtendPathForward(currentPath, bestPath, lookingDepth_);
+				if (bestPath.score_ > 0)
+				{
+					bestPath.FixForward(currentPath);
+					ExtendPathBackward(currentPath, bestPath, lookingDepth_);
+					if (bestPath.score_ == currentPath.Score())
+					{
+						source = true;
+					}
+				}
+				
+				currentPath.Clean();
+			}			
+			
+			if (source && !sink)
+			{
+				source_.push_back(vid);
+			}
+
+			if (!source && sink)
+			{
+				sink_.push_back(vid);
+			}
+
+			if (source && sink)
+			{
+				both_.push_back(vid);
+			}			
 		}
 
 		void ExtendPathRandom(Path & currentPath, BestPath & bestPath, int maxDepth)
@@ -654,6 +610,9 @@ namespace Sibelia
 		JunctionStorage & storage_;
 		std::vector<std::vector<Edge> > syntenyPath_;
 		std::vector<std::vector<Assignment> > blockId_;	
+		std::vector<int64_t> source_;
+		std::vector<int64_t> sink_;
+		std::vector<int64_t> both_;
 	};
 }
 
