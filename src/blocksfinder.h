@@ -185,6 +185,7 @@ namespace Sibelia
 		void FindBlocks(int64_t minBlockSize, int64_t maxBranchSize, int64_t flankingThreshold, int64_t lookingDepth, int64_t sampleSize, const std::string & debugOut)
 		{			
 			blocksFound_ = 0;
+			debugOut_ = debugOut;
 			sampleSize_ = sampleSize;
 			lookingDepth_ = lookingDepth;
 			minBlockSize_ = minBlockSize;
@@ -212,7 +213,6 @@ namespace Sibelia
 				}				
 			}
 
-			std::random_shuffle(shuffle.begin(), shuffle.end());
 			std::ofstream debugStream(debugOut.c_str());
 			BestPath bestPath;
 			Path currentPath(storage_, maxBranchSize_, minBlockSize_, flankingThreshold_, blockId_);
@@ -226,55 +226,21 @@ namespace Sibelia
 
 				Classify(vid, currentPath, bestPath, debugStream);			
 			}
-
-			std::cout << source_.size() << ' ' << sink_.size() << ' ' << both_.size() << std::endl;
-			sourceAdjList_.resize(source_.size());
-			sinkAdjList_.resize(sink_.size());
-			for (size_t srcId = 0; srcId < source_.size(); srcId++)
-			{				
-				int64_t src = source_[srcId];
-				for(size_t snkId = 0; snkId < sink_.size(); snkId++)
-				{
-					int count = 0;
-					int64_t snk = sink_[snkId];
-					for (int64_t srcIdx = 0; srcIdx < storage_.GetInstancesCount(src) && count < 2; srcIdx++)
-					{
-						JunctionStorage::JunctionIterator srcIt = storage_.GetJunctionInstance(src, srcIdx);
-						for (int64_t snkIdx = 0; snkIdx < storage_.GetInstancesCount(snk) && count < 2; snkIdx++)
-						{
-							JunctionStorage::JunctionIterator snkIt = storage_.GetJunctionInstance(snk, snkIdx);
-							if (snkIt.GetChrId() == srcIt.GetChrId() && snkIt.IsPositiveStrand() == srcIt.IsPositiveStrand())
-							{
-								int64_t diff = snkIt.GetPosition(&storage_) - srcIt.GetPosition(&storage_);
-								if ((snkIt.IsPositiveStrand() && diff >= minBlockSize_) || (!snkIt.IsPositiveStrand() && -diff >= minBlockSize))
-								{
-									count++;
-								}
-							}
-						}
-					}
-
-					if (count > 1)
-					{
-						sourceAdjList_[srcId].push_back(snkId);
-						sinkAdjList_[snkId].push_back(srcId);
-					}
-				}				
-			}
-
-			std::vector<bool> sourceVisit(source_.size());
-			std::vector<bool> sinkVisit(sink_.size());
-			std::vector<int64_t> comps;
-			for(size_t src = 0; src < source_.size(); src++)
-			{
-				if (!sourceVisit[src])
-				{
-					comps.push_back(DfsConnectedComponent(src, sourceVisit, sinkVisit));
-				}
-			}
 			
-			std::cout << "Time: " << time(0) - mark << std::endl;
-			std::cout << *std::max_element(comps.begin(), comps.end()) << std::endl;
+			std::cout << "Src: " << source_.size() << std::endl;
+
+			count = 0;
+			for (auto vid : source_)
+			{
+				if (count++ % 1000 == 0)
+				{
+					std::cerr << count << '\t' << source_.size() << std::endl;
+				}
+
+				ExtendSeed(vid, currentPath, bestPath, debugStream);
+			}
+
+			std::cout << "Time: " << time(0) - mark << std::endl;			
 		}
 
 		void Dump(std::ostream & out) const
@@ -406,6 +372,50 @@ namespace Sibelia
 		void TryOpenFile(const std::string & fileName, std::ofstream & stream) const;
 		void ListChrs(std::ostream & out) const;
 		
+		template<class T>
+		void DumpVertex(int64_t id, std::ostream & out, T & visit)
+		{
+			const int64_t cnt = 3;
+			for (int64_t idx = 0; idx < storage_.GetInstancesCount(id); idx++)
+			{
+				auto jt = storage_.GetJunctionInstance(id, idx);
+				for (int64_t i = 0; i < cnt; i++)
+				{
+					auto it = jt - 1;
+					auto pr = std::make_pair(it, jt);
+					if (it.Valid(&storage_) && std::find(visit.begin(), visit.end(), pr) == visit.end())
+					{
+						out << it.GetVertexId(&storage_) << " -> " << jt.GetVertexId(&storage_)
+							<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\""
+							<< (it.IsPositiveStrand() ? "color=blue" : "color=red") << "]\n";
+						visit.push_back(pr);
+					}
+
+					jt = it;
+				}
+			}
+
+			for (int64_t idx = 0; idx < storage_.GetInstancesCount(id); idx++)
+			{
+				auto it = storage_.GetJunctionInstance(id, idx);
+				for (int64_t i = 0; i < cnt; i++)
+				{
+					auto jt = it + 1;
+					auto pr = std::make_pair(it, jt);
+					if (jt.Valid(&storage_) && std::find(visit.begin(), visit.end(), pr) == visit.end())
+					{
+						out << it.GetVertexId(&storage_) << " -> " << jt.GetVertexId(&storage_)
+							<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\""
+							<< (it.IsPositiveStrand() ? "color=blue" : "color=red") << "]\n";
+						visit.push_back(pr);
+					}
+
+					it = jt;
+				}
+			}
+		}
+
+
 		bool TryFinalizeBlock(Path & currentPath)
 		{
 			if (currentPath.Score(true) > 0 && currentPath.MiddlePathLength() >= minBlockSize_ && currentPath.GoodInstances() > 1)
@@ -424,23 +434,68 @@ namespace Sibelia
 					forbidden_.Add(syntenyPath_.back()[i]);
 				}
 
+				std::stringstream ss;
+				ss << debugOut_ << "/" << syntenyPath_.size();
+				std::ofstream out(ss.str() + ".dot");
+				out << "digraph G\n{\nrankdir = LR" << std::endl;
+				int64_t flank = 10;
 				int64_t instanceCount = 0;
+				std::set<int64_t> vvisit;
+				std::vector<std::pair<JunctionStorage::JunctionIterator, JunctionStorage::JunctionIterator> > visit;
 				for (auto & instance : currentPath.Instances())
 				{
+					auto start = instance.Front();
+					auto end = instance.Back();
+					if (instance.Back() == instance.Front())
+					{
+						continue;
+					}
+
+					do
+					{
+						auto it = start;
+						auto jt = start + 1;
+
+						int64_t itId = it.GetVertexId(&storage_);
+						if (vvisit.count(itId) == 0)
+						{
+							DumpVertex(itId, out, visit);
+							vvisit.insert(itId);
+						}
+
+						int64_t jtId = jt.GetVertexId(&storage_);
+						if (vvisit.count(jtId) == 0)
+						{
+							DumpVertex(jt.GetVertexId(&storage_), out, visit);
+							vvisit.insert(jtId);
+						}
+						
+						start = jt;
+
+					} while (start != end);
+
 					if (currentPath.IsGoodInstance(instance))
 					{
+						out << instance.Front().GetVertexId(&storage_) << "[shape=box];" << std::endl;
+						out << instance.Back().GetVertexId(&storage_) << "[shape=triangle];" << std::endl;
 						auto end = instance.Back() + 1;
 						for (auto it = instance.Front(); it != end; ++it)
 						{
-							int64_t idx = it.GetIndex();
-							int64_t maxidx = storage_.GetChrVerticesCount(it.GetChrId());
-							blockId_[it.GetChrId()][it.GetIndex()].block = it.IsPositiveStrand() ? blocksFound_ : -blocksFound_;
-							blockId_[it.GetChrId()][it.GetIndex()].instance = instanceCount;
-						}
+							auto end = instance.Back() + 1;
+							for (auto it = instance.Front(); it != end; ++it)
+							{
+								int64_t idx = it.GetIndex();
+								int64_t maxidx = storage_.GetChrVerticesCount(it.GetChrId());
+								blockId_[it.GetChrId()][it.GetIndex()].block = it.IsPositiveStrand() ? blocksFound_ : -blocksFound_;
+								blockId_[it.GetChrId()][it.GetIndex()].instance = instanceCount;
+							}
 
-						instanceCount++;
-					}
+							instanceCount++;
+						}
+					}					
 				}
+
+				out << "}";
 
 				return true;
 			}
@@ -457,8 +512,9 @@ namespace Sibelia
 			
 			bool sink = false;
 			bool source = false;
-			
+			bool newInstances = false;
 			{
+				/*
 				bestPath.Init();
 				currentPath.Init(vid);
 				ExtendPathBackward(currentPath, bestPath, lookingDepth_, false);
@@ -473,17 +529,17 @@ namespace Sibelia
 				}
 
 				currentPath.Clean();
-				
+				*/
 			}
 
 			{
 				bestPath.Init();
 				currentPath.Init(vid);
-				ExtendPathForward(currentPath, bestPath, lookingDepth_, false);
+				ExtendPathForward(currentPath, bestPath, lookingDepth_, newInstances);
 				if (bestPath.score_ > 0)
 				{
-					bestPath.FixForward(currentPath, false);
-					ExtendPathBackward(currentPath, bestPath, lookingDepth_, false);
+					bestPath.FixForward(currentPath, newInstances);
+					ExtendPathBackward(currentPath, bestPath, lookingDepth_, newInstances);
 					if (bestPath.score_ == currentPath.Score())
 					{
 						source = true;
@@ -508,6 +564,42 @@ namespace Sibelia
 			//	both_.push_back(vid);
 			}			
 		}
+
+		void ExtendSeed(int64_t vid,
+			Path & currentPath,
+			BestPath & bestPath,
+			std::ostream & debugOut)
+		{
+			bestPath.Init();
+			currentPath.Init(vid);
+			while (true)
+			{
+				int64_t prevBestScore = bestPath.score_;
+				if (sampleSize_ > 0)
+				{
+					ExtendPathRandom(currentPath, bestPath, lookingDepth_);
+					if (bestPath.score_ <= prevBestScore)
+					{
+						break;
+					}
+				}
+				else
+				{					
+					ExtendPathForward(currentPath, bestPath, lookingDepth_, true);
+					bestPath.FixForward(currentPath, true);
+//					ExtendPathBackward(currentPath, bestPath, lookingDepth_, true);
+//					bestPath.FixBackward(currentPath, true);
+					if (bestPath.score_ <= prevBestScore)
+					{
+						break;
+					}
+				}
+			}
+
+			TryFinalizeBlock(currentPath);
+			currentPath.Clean();
+		}
+
 
 		void ExtendPathRandom(Path & currentPath, BestPath & bestPath, int maxDepth)
 		{
@@ -697,7 +789,7 @@ namespace Sibelia
 		std::vector<int64_t> source_;
 		std::vector<int64_t> sink_;
 		std::vector<int64_t> both_;
-
+		std::string debugOut_;
 		std::vector<std::vector<int64_t> > sinkAdjList_;
 		std::vector<std::vector<int64_t> > sourceAdjList_;
 	};

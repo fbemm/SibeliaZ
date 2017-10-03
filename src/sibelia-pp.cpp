@@ -149,7 +149,7 @@ int main(int argc, char * argv[])
 			maxFlankingSize.getValue(),
 			lookingDepth.getValue(),
 			sampleSize.getValue(),
-			outDirName.getValue() + "/paths.txt");
+			outDirName.getValue() + "/blocks/");
 		finder.GenerateLegacyOutput(outDirName.getValue());
 		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
 		finder.Dump(dumpStream);
