@@ -315,7 +315,7 @@ namespace Sibelia
 			return true;
 		}
 
-		bool PointPushBack(const Edge & e)
+		bool PointPushBack(const Edge & e, bool addNewInstance)
 		{
 			int64_t vertex = e.GetEndVertex();
 			if (distanceKeeper_.IsSet(vertex))
@@ -366,7 +366,7 @@ namespace Sibelia
 						
 						const_cast<Instance&>(*inst).ChangeBack(nowIt);
 					}
-					else
+					else if(addNewInstance)
 					{
 						instance_.insert(Instance(nowIt));
 					}
@@ -424,7 +424,7 @@ namespace Sibelia
 			}			
 		}
 
-		bool PointPushFront(const Edge & e)
+		bool PointPushFront(const Edge & e, bool addNewInstance)
 		{
 			int64_t vertex = e.GetStartVertex();
 			if (distanceKeeper_.IsSet(vertex))
@@ -475,7 +475,7 @@ namespace Sibelia
 
 						const_cast<Instance&>(*inst).ChangeFront(nowIt);
 					}
-					else
+					else if(addNewInstance)
 					{
 						instance_.insert(Instance(nowIt));
 					}
@@ -610,11 +610,11 @@ namespace Sibelia
 		std::vector<Path::Point> newLeftBody_;
 		std::vector<Path::Point> newRightBody_;
 
-		void FixForward(Path & path)
+		void FixForward(Path & path, bool addNewInstance)
 		{
 			for (auto & pt : newRightBody_)
 			{
-				bool ret = path.PointPushBack(pt.Edge());
+				bool ret = path.PointPushBack(pt.Edge(), addNewInstance);
 				assert(ret);
 			}
 
@@ -622,11 +622,11 @@ namespace Sibelia
 			rightFlank_ = path.rightBody_.size();
 		}
 
-		void FixBackward(Path & path)
+		void FixBackward(Path & path, bool addNewInstance)
 		{
 			for (auto & pt : newLeftBody_)
 			{
-				bool ret = path.PointPushFront(pt.Edge());
+				bool ret = path.PointPushFront(pt.Edge(), addNewInstance);
 				assert(ret);
 			}
 
