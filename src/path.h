@@ -41,8 +41,19 @@ namespace Sibelia
 			
 		}
 
+		int64_t RightDistance() const
+		{
+			return rightBody_.size() > 0 ? rightBody_.back().EndDistance() : 0;
+		}
+
+		int64_t LeftDistance() const
+		{
+			return leftBody_.size() > 0 ? -leftBody_.back().StartDistance() : 0;
+		}
+
 		void Init(int64_t vid)
 		{
+			Clean();
 			origin_ = vid;			
 			distanceKeeper_.Set(vid, 0);			
 			for (size_t i = 0; i < storage_->GetInstancesCount(vid); i++)
@@ -253,6 +264,28 @@ namespace Sibelia
 			return origin_;
 		}
 
+		const Point& GetRightPoint() const
+		{
+			return rightBody_.back();
+		}
+
+		const Point& GetLeftPoint() const
+		{
+			return leftBody_.back();
+		}
+
+		int64_t LeftFlankSize(const Instance & inst) const
+		{
+			int64_t leftFlankSize = abs(inst.LeftFlankDistance(distanceKeeper_, storage_) - (leftBody_.empty() ? 0 : leftBody_.back().StartDistance()));
+			return leftFlankSize;
+		}
+
+		int64_t RightFlankSize(const Instance & inst) const
+		{
+			int64_t rightFlankSize = abs(inst.RightFlankDistance(distanceKeeper_, storage_) - (rightBody_.empty() ? 0 : rightBody_.back().EndDistance()));
+			return rightFlankSize;
+		}
+
 		int64_t GetStartVertex() const
 		{
 			if (leftBody_.size() > 0)
@@ -376,6 +409,18 @@ namespace Sibelia
 			rightBody_.push_back(Point(e, startVertexDistance));
 			distanceKeeper_.Set(e.GetEndVertex(), endVertexDistance);
 
+			for (auto & inst : instance_)
+			{
+				int64_t length = abs(inst.Back().GetPosition(storage_) - inst.Front().GetPosition(storage_));
+				if (length >= minChainSize_)
+				{
+					if (LeftFlankSize(inst) > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
+					{
+						fail = true;
+					}
+				}
+			}
+
 			if (fail)
 			{
 				PointPopBack();
@@ -484,6 +529,19 @@ namespace Sibelia
 
 			leftBody_.push_back(Point(e, startVertexDistance));
 			distanceKeeper_.Set(e.GetStartVertex(), startVertexDistance);
+
+			for (auto & inst : instance_)
+			{
+				int64_t length = abs(inst.Back().GetPosition(storage_) - inst.Front().GetPosition(storage_));
+				if (length >= minChainSize_)
+				{
+					if (LeftFlankSize(inst) > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
+					{
+						fail = true;
+					}
+				}
+				
+			}
 			
 			if (fail)
 			{

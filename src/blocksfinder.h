@@ -217,6 +217,19 @@ namespace Sibelia
 			BestPath bestPath;
 			Path currentPath(storage_, maxBranchSize_, minBlockSize_, flankingThreshold_, blockId_);
 			time_t mark = time(0);
+
+			
+			{/*
+				int64_t intvid = -48543;
+				std::vector<std::pair<JunctionStorage::JunctionIterator, JunctionStorage::JunctionIterator> > visit;
+				std::ofstream out("C:/Temp/Pic/out.dot");
+				out << "digraph G\n{\nrankdir = LR" << std::endl;
+				DumpVertex(intvid, out, visit, 33);
+				out << "}" << std::endl;
+				Classify(intvid, currentPath, bestPath, debugStream);
+			*/
+			}
+			
 			for(auto vid : shuffle)
 			{
 				if (count++ % 1000 == 0)
@@ -226,9 +239,8 @@ namespace Sibelia
 
 				Classify(vid, currentPath, bestPath, debugStream);			
 			}
-			
-			std::cout << "Src: " << source_.size() << std::endl;
 
+			std::cout << "Src: " << source_.size() << std::endl;
 			count = 0;
 			for (auto vid : source_)
 			{
@@ -240,7 +252,7 @@ namespace Sibelia
 				ExtendSeed(vid, currentPath, bestPath, debugStream);
 			}
 
-			std::cout << "Time: " << time(0) - mark << std::endl;			
+			std::cout << "Time: " << time(0) - mark << std::endl;
 		}
 
 		void Dump(std::ostream & out) const
@@ -373,9 +385,8 @@ namespace Sibelia
 		void ListChrs(std::ostream & out) const;
 		
 		template<class T>
-		void DumpVertex(int64_t id, std::ostream & out, T & visit)
-		{
-			const int64_t cnt = 3;
+		void DumpVertex(int64_t id, std::ostream & out, T & visit, int64_t cnt = 5)
+		{			
 			for (int64_t idx = 0; idx < storage_.GetInstancesCount(id); idx++)
 			{
 				auto jt = storage_.GetJunctionInstance(id, idx);
@@ -507,12 +518,16 @@ namespace Sibelia
 			Path & currentPath,
 			BestPath & bestPath,
 			std::ostream & debugOut)
-		{			
-			
-			
+		{	
+			if (forbiddenSrc_.count(vid))
+			{
+				//return;
+			}
+
 			bool sink = false;
 			bool source = false;
 			bool newInstances = false;
+			int64_t halfBlock = minBlockSize_ / 2;
 			{
 				/*
 				bestPath.Init();
@@ -532,26 +547,48 @@ namespace Sibelia
 				*/
 			}
 
-			{
+			{				
 				bestPath.Init();
 				currentPath.Init(vid);
-				ExtendPathForward(currentPath, bestPath, lookingDepth_, newInstances);
-				if (bestPath.score_ > 0)
+				int64_t prevBestScore;
+				while (currentPath.RightDistance() < halfBlock)
 				{
-					bestPath.FixForward(currentPath, newInstances);
-					ExtendPathBackward(currentPath, bestPath, lookingDepth_, newInstances);
-					if (bestPath.score_ == currentPath.Score())
+					prevBestScore = bestPath.score_;
+					ExtendPathForward(currentPath, bestPath, lookingDepth_, false, false);
+					bestPath.FixForward(currentPath, false);
+					if (bestPath.score_ <= prevBestScore)
 					{
-						source = true;
+						break;
 					}
 				}
-				
-				currentPath.Clean();
-			}			
+
+				while (currentPath.LeftDistance() < halfBlock)
+				{
+					prevBestScore = bestPath.score_;
+					ExtendPathBackward(currentPath, bestPath, lookingDepth_, false, false);					
+					bestPath.FixBackward(currentPath, false);
+					if (bestPath.score_ <= prevBestScore)
+					{
+						break;
+					}
+				}				
+
+				if (currentPath.LeftDistance() < halfBlock && currentPath.RightDistance() >= halfBlock)
+				{
+					source = true;
+				}
+			}
 			
 			if (source && !sink)
 			{
 				source_.push_back(vid);
+				std::vector<Edge> edge;
+				currentPath.DumpPath(edge);
+				for (auto a : edge)
+				{
+					forbiddenSrc_.insert(a.GetStartVertex());
+					forbiddenSrc_.insert(a.GetEndVertex());
+				}
 			}
 
 			if (!source && sink)
@@ -585,10 +622,10 @@ namespace Sibelia
 				}
 				else
 				{					
-					ExtendPathForward(currentPath, bestPath, lookingDepth_, true);
+					ExtendPathForward(currentPath, bestPath, lookingDepth_, true, false);
 					bestPath.FixForward(currentPath, true);
-//					ExtendPathBackward(currentPath, bestPath, lookingDepth_, true);
-//					bestPath.FixBackward(currentPath, true);
+					ExtendPathBackward(currentPath, bestPath, lookingDepth_, true, false);
+					bestPath.FixBackward(currentPath, true);
 					if (bestPath.score_ <= prevBestScore)
 					{
 						break;
@@ -678,7 +715,7 @@ namespace Sibelia
 			bestPath.FixBackward(currentPath, true);
 		}
 		
-		void ExtendPathForward(Path & currentPath, BestPath & bestPath, int maxDepth, bool addNewInstance)
+		void ExtendPathForward(Path & currentPath, BestPath & bestPath, int maxDepth, bool addNewInstance, bool checkSource)
 		{
 			if (maxDepth > 0)
 			{
@@ -686,7 +723,7 @@ namespace Sibelia
 				for (int64_t idx = 0; idx < storage_.OutgoingEdgesNumber(prevVertex); idx++)
 				{
 					Edge e = storage_.OutgoingEdge(prevVertex, idx);
-					if (!forbidden_.IsForbidden(e))
+					if (!forbidden_.IsForbidden(e) && (!checkSource || !std::binary_search(source_.begin(), source_.end(), e.GetEndVertex())))
 					{						
 						if (currentPath.PointPushBack(e, addNewInstance))
 						{
@@ -699,7 +736,7 @@ namespace Sibelia
 								bestPath.UpdateForward(currentPath, currentScore);
 							}
 
-							ExtendPathForward(currentPath, bestPath, maxDepth - 1, addNewInstance);
+							ExtendPathForward(currentPath, bestPath, maxDepth - 1, addNewInstance, checkSource);
 							currentPath.PointPopBack();
 						}
 					}
@@ -707,7 +744,7 @@ namespace Sibelia
 			}
 		}
 		
-		void ExtendPathBackward(Path & currentPath, BestPath & bestPath, int maxDepth, bool addNewInstance)
+		void ExtendPathBackward(Path & currentPath, BestPath & bestPath, int maxDepth, bool addNewInstance, bool checkSource)
 		{
 			if (maxDepth > 0)
 			{
@@ -715,7 +752,7 @@ namespace Sibelia
 				for (int64_t idx = 0; idx < storage_.IngoingEdgesNumber(prevVertex); idx++)
 				{
 					Edge e = storage_.IngoingEdge(prevVertex, idx);
-					if (!forbidden_.IsForbidden(e))
+					if (!forbidden_.IsForbidden(e) && (!checkSource || !std::binary_search(source_.begin(), source_.end(), e.GetStartVertex())))
 					{	
 						if (currentPath.PointPushFront(e, addNewInstance))
 						{
@@ -728,7 +765,7 @@ namespace Sibelia
 								bestPath.UpdateBackward(currentPath, currentScore);
 							}					
 
-							ExtendPathBackward(currentPath, bestPath, maxDepth - 1, addNewInstance);
+							ExtendPathBackward(currentPath, bestPath, maxDepth - 1, addNewInstance, checkSource);
 							currentPath.PointPopFront();
 						}
 					}
@@ -784,6 +821,7 @@ namespace Sibelia
 		int64_t maxBranchSize_;
 		int64_t flankingThreshold_;
 		JunctionStorage & storage_;
+		std::set<int64_t> forbiddenSrc_;
 		std::vector<std::vector<Edge> > syntenyPath_;
 		std::vector<std::vector<Assignment> > blockId_;	
 		std::vector<int64_t> source_;
