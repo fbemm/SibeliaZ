@@ -317,18 +317,17 @@ namespace Sibelia
 					out << std::endl;
 				}
 			}
-		}
+		}		
 
-
-		void GenerateLegacyOutput(const std::string & outDir) const
+		void GenerateLegacyOutput(const std::string & outDir, const std::string & oldCoords) const
 		{
-			BlockList instance;
 			std::vector<std::vector<bool> > covered(storage_.GetChrNumber());
 			for (size_t i = 0; i < covered.size(); i++)
 			{
 				covered[i].assign(storage_.GetChrSequence(i).size(), false);
 			}
 
+			BlockList instance;
 			for (size_t chr = 0; chr < blockId_.size(); chr++)
 			{
 				for (size_t i = 0; i < blockId_[chr].size();)
@@ -344,6 +343,7 @@ namespace Sibelia
 						int64_t start = std::min(cstart, cend);
 						int64_t end = std::max(cstart, cend);
 						instance.push_back(BlockInstance(bid, chr, start, end));
+						std::fill(covered[chr].begin() + start, covered[chr].begin() + end, true);
 						i = j + 1;
 					}
 					else
@@ -357,6 +357,83 @@ namespace Sibelia
 			GenerateReport(instance, outDir + "/" + "coverage_report.txt");
 			ListBlocksIndices(instance, outDir + "/" + "blocks_coords.txt");
 			ListBlocksSequences(instance, outDir + "/" + "blocks_sequences.fasta");
+		
+			std::string buf;
+			std::ifstream oldCoordsIn(oldCoords);
+			std::ofstream comparisonOut(outDir + "/comparison.txt");
+			while (std::getline(oldCoordsIn, buf) && buf[0] != '-')
+			{
+			}
+
+			std::string compDir = outDir + "/missing";
+			for (int blockId = 1; ; blockId++)
+			{			
+				int missing = 0;
+				std::vector<BlockInstance> inst;
+				if (!std::getline(oldCoordsIn, buf) || !std::getline(oldCoordsIn, buf))
+				{
+					break;
+				}
+
+				while (std::getline(oldCoordsIn, buf) && buf[0] != '-')
+				{
+					std::stringstream ss(buf);
+					char sign;
+					int seqid, start, end;
+					ss >> seqid >> sign >> start >> end;
+					seqid--;
+					inst.push_back(BlockInstance(sign == '+' ? int(blockId) : -int(blockId), seqid, start, end));
+					if (sign == '-')
+					{
+						std::swap(start, end);
+					}
+
+					int coveredbp = 0;
+					for (int i = start - 1; i <= end - 1; i++)
+					{
+						if (covered[seqid][i])
+						{
+							coveredbp++;
+						}
+					}
+
+					double ratio = double(coveredbp) / (end - start);
+					if (ratio <= 0.3)
+					{
+						missing++;
+						comparisonOut << blockId << ' ' << ratio << std::endl;
+					}					
+				}
+
+				if (missing >= inst.size() / 2)
+				{
+					std::stringstream fname;
+					fname << compDir << "/" << blockId << ".dot";
+					std::ofstream missingDot(fname.str());
+					std::set<int64_t> vertex;
+					for (auto i : inst)
+					{
+						for (auto it = storage_.Begin(i.GetChrId()); it != storage_.End(i.GetChrId()); ++it)
+						{
+							int64_t pos = it.GetPosition(&storage_);
+							if (pos >= i.GetStart() && pos <= i.GetEnd())
+							{
+								vertex.insert(it.GetVertexId(&storage_));								
+							}
+						}
+					}
+
+					missingDot << "digraph G\n{\nrankdir = LR" << std::endl;
+					std::vector<std::pair<JunctionStorage::JunctionIterator, JunctionStorage::JunctionIterator> > vvisit;
+					for (auto vid : vertex)
+					{						
+						DumpVertex(vid, missingDot, vvisit);
+					}
+
+					missingDot << "}" << std::endl;
+				}
+			}
+
 		}
 
 
@@ -385,7 +462,7 @@ namespace Sibelia
 		void ListChrs(std::ostream & out) const;
 		
 		template<class T>
-		void DumpVertex(int64_t id, std::ostream & out, T & visit, int64_t cnt = 5)
+		void DumpVertex(int64_t id, std::ostream & out, T & visit, int64_t cnt = 5) const
 		{			
 			for (int64_t idx = 0; idx < storage_.GetInstancesCount(id); idx++)
 			{

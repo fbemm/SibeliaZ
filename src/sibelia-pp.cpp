@@ -150,7 +150,7 @@ int main(int argc, char * argv[])
 			lookingDepth.getValue(),
 			sampleSize.getValue(),
 			outDirName.getValue() + "/blocks/");
-		finder.GenerateLegacyOutput(outDirName.getValue());
+		finder.GenerateLegacyOutput(outDirName.getValue(), outDirName.getValue() + "/old_coords.txt");
 		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
 		finder.Dump(dumpStream);
 	}
