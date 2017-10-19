@@ -35,7 +35,7 @@ namespace Sibelia
 			std::vector<std::vector<Assignment> > & blockId,
 			bool checkConsistency = false) :
 			maxBranchSize_(maxBranchSize), minBlockSize_(minBlockSize), maxFlankingSize_(maxFlankingSize), storage_(&storage),
-			distanceKeeper_(storage.GetVerticesNumber()), minChainSize_(minBlockSize - 2 * maxFlankingSize), blockId_(blockId),
+			distanceKeeper_(storage.GetVerticesNumber()), minChainSize_(minBlockSize), blockId_(blockId),
 			checkConsistency_(checkConsistency)
 		{
 			
@@ -203,6 +203,10 @@ namespace Sibelia
 			return origin_;
 		}
 
+		void SetMaxBranchSize(int64_t newMaxBranchSize)
+		{
+			maxBranchSize_ = newMaxBranchSize;
+		}
 		/*
 		void PrintInstance(const Instance & inst, std::ostream & out) const
 		{
@@ -251,7 +255,8 @@ namespace Sibelia
 
 		int64_t MiddlePathLength() const
 		{
-			return (rightBody_.size() > 0 ? rightBody_.back().EndDistance() : 0) - (leftBody_.size() > 0 ? leftBody_.back().StartDistance() : 0);
+			int64_t length = (rightBody_.size() > 0 ? rightBody_.back().EndDistance() : 0) - (leftBody_.size() > 0 ? leftBody_.back().StartDistance() : 0);
+			return length;
 		}
 
 		int64_t GetEndVertex() const
@@ -356,7 +361,7 @@ namespace Sibelia
 				return false;
 			}
 
-			bool fail = false;
+ 			bool fail = false;
 			int64_t startVertexDistance = rightBody_.empty() ? 0 : rightBody_.back().EndDistance();
 			int64_t endVertexDistance = startVertexDistance + e.GetLength();
 
@@ -389,6 +394,8 @@ namespace Sibelia
 					
 					if (!newInstance && inst->Back().GetVertexId(storage_) != vertex)
 					{
+						int64_t v1 = nowIt.GetPosition(storage_);
+
 						int64_t nextLength = abs(nowIt.GetPosition(storage_) - inst->Front().GetPosition(storage_));
 						int64_t leftFlankSize = abs(inst->LeftFlankDistance(distanceKeeper_, storage_) - (leftBody_.empty() ? 0 : leftBody_.back().StartDistance()));
 						if (nextLength >= minChainSize_ && leftFlankSize > maxFlankingSize_)
@@ -414,7 +421,9 @@ namespace Sibelia
 				int64_t length = abs(inst.Back().GetPosition(storage_) - inst.Front().GetPosition(storage_));
 				if (length >= minChainSize_)
 				{
-					if (LeftFlankSize(inst) > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
+					int64_t left = LeftFlankSize(inst);
+					int64_t right = RightFlankSize(inst);
+					if (left > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
 					{
 						fail = true;
 					}
@@ -533,16 +542,16 @@ namespace Sibelia
 			for (auto & inst : instance_)
 			{
 				int64_t length = abs(inst.Back().GetPosition(storage_) - inst.Front().GetPosition(storage_));
+				int64_t left = LeftFlankSize(inst);
+				int64_t right = RightFlankSize(inst);
 				if (length >= minChainSize_)
-				{
-					if (LeftFlankSize(inst) > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
+				{					
+					if (left > maxFlankingSize_ || RightFlankSize(inst) > maxFlankingSize_)
 					{
 						fail = true;
 					}
 				}
-				
 			}
-			
 			if (fail)
 			{
 				PointPopFront();

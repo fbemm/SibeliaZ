@@ -455,29 +455,7 @@ namespace Sibelia
 				OutgoingEdges(vertexId, outgoingEdge_[vertexId + vertices]);
 			}
 		}
-
-			
-		Edge RandomForwardEdge(int64_t vid) const
-		{
-			int64_t adjVid = vid + GetVerticesNumber();
-			if (outgoingEdge_[adjVid].size() > 0)
-			{
-				return outgoingEdge_[adjVid][rand() % outgoingEdge_[adjVid].size()];
-			}
-
-			return Edge();
-		}
-		
-		Edge RandomBackwardEdge(int64_t vid) const
-		{
-			int64_t adjVid = vid + GetVerticesNumber();
-			if (ingoingEdge_[adjVid].size() > 0)
-			{
-				return ingoingEdge_[adjVid][rand() % ingoingEdge_[adjVid].size()];
-			}
-
-			return Edge();
-		}
+				
 
 		JunctionStorage() {}
 		JunctionStorage(const std::string & fileName, const std::string & genomesFileName, uint64_t k) : k_(k)
