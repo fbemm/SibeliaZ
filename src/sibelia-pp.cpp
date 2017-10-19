@@ -10,8 +10,6 @@ size_t Atoi(const char * str)
 	return ret;
 }
 
-const int64_t Sibelia::Assignment::UNKNOWN_BLOCK = INT32_MAX;
-
 class OddConstraint : public TCLAP::Constraint < unsigned int >
 {
 public:
@@ -60,14 +58,6 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
-		TCLAP::ValueArg<unsigned int> maxFlankingSize("f",
-			"flanksize",
-			"Maximum flank size",
-			false,
-			50,
-			"integer",
-			cmd);
-
 		TCLAP::ValueArg<unsigned int> minBlockSize("m",
 			"blocksize",
 			"Minimum block size",
@@ -76,27 +66,11 @@ int main(int argc, char * argv[])
 			"integer",
 			cmd);
 
-		TCLAP::ValueArg<unsigned int> lookingDepth("",
-			"depth",
-			"Looking depth",
-			false,
-			8,
-			"integer",
-			cmd);
-
 		TCLAP::ValueArg<unsigned int> threads("t",
 			"threads",
 			"Number of worker threads",
 			false,
 			1,
-			"integer",
-			cmd);
-
-		TCLAP::ValueArg<unsigned int> sampleSize("",
-			"ssize",
-			"Sample size for randomized walk",
-			false,
-			0,
 			"integer",
 			cmd);
 
@@ -146,9 +120,6 @@ int main(int argc, char * argv[])
 		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
 		finder.FindBlocks(minBlockSize.getValue(),
 			maxBranchSize.getValue(),
-			maxFlankingSize.getValue(),
-			lookingDepth.getValue(),
-			sampleSize.getValue(),
 			outDirName.getValue() + "/blocks/");
 		finder.GenerateLegacyOutput(outDirName.getValue(), outDirName.getValue() + "/old_coords.txt");
 		std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");

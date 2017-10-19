@@ -25,6 +25,7 @@ namespace Sibelia
 		}
 	}
 
+	const int32_t BlocksFinder::Assignment::UNKNOWN_BLOCK = INT32_MAX;
 
 	bool compareById(const BlockInstance & a, const BlockInstance & b)
 	{
@@ -298,5 +299,109 @@ namespace Sibelia
 		}
 
 		out << DELIMITER << std::endl;
+	}
+
+	void BlocksFinder::Dump(std::ostream & out) const
+	{
+		out << "digraph G\n{\nrankdir = LR" << std::endl;
+		for (size_t i = 0; i < storage_.GetChrNumber(); i++)
+		{
+			for (auto it = storage_.Begin(i); it != storage_.End(i) - 1; ++it)
+			{
+				auto jt = it + 1;
+				out << it.GetVertexId(&storage_) << " -> " << jt.GetVertexId(&storage_)
+					<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\" color=blue]\n";
+				out << jt.Reverse().GetVertexId(&storage_) << " -> " << it.Reverse().GetVertexId(&storage_)
+					<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << "\" color=red]\n";
+			}
+		}
+
+		for (size_t i = 0; i < syntenyPath_.size(); i++)
+		{
+			for (size_t j = 0; j < syntenyPath_[i].size(); j++)
+			{
+				Edge e = syntenyPath_[i][j];
+				out << e.GetStartVertex() << " -> " << e.GetEndVertex() <<
+					"[label=\"" << e.GetChar() << ", " << i + 1 << "\" color=green]\n";
+				e = e.Reverse();
+				out << e.GetStartVertex() << " -> " << e.GetEndVertex() <<
+					"[label=\"" << e.GetChar() << ", " << -(int64_t(i + 1)) << "\" color=green]\n";
+			}
+		}
+
+		out << "}" << std::endl;
+	}
+
+	void BlocksFinder::ListBlocksSequences(const BlockList & block, const std::string & fileName) const
+	{
+		std::ofstream out;
+		TryOpenFile(fileName, out);
+		std::vector<IndexPair> group;
+		BlockList blockList = block;
+		GroupBy(blockList, compareById, std::back_inserter(group));
+		for (std::vector<IndexPair>::iterator it = group.begin(); it != group.end(); ++it)
+		{
+			for (size_t block = it->first; block < it->second; block++)
+			{
+				size_t length = blockList[block].GetLength();
+				char strand = blockList[block].GetSignedBlockId() > 0 ? '+' : '-';
+				size_t chr = blockList[block].GetChrId();
+				out << ">Seq=\"" << storage_.GetChrDescription(chr) << "\",Strand='" << strand << "',";
+				out << "Block_id=" << blockList[block].GetBlockId() << ",Start=";
+				out << blockList[block].GetConventionalStart() << ",End=" << blockList[block].GetConventionalEnd() << std::endl;
+
+				if (blockList[block].GetSignedBlockId() > 0)
+				{
+					OutputLines(storage_.GetChrSequence(chr).begin() + blockList[block].GetStart(), length, out);
+				}
+				else
+				{
+					std::string::const_reverse_iterator it(storage_.GetChrSequence(chr).begin() + blockList[block].GetEnd());
+					OutputLines(CFancyIterator(it, TwoPaCo::DnaChar::ReverseChar, ' '), length, out);
+				}
+
+				out << std::endl;
+			}
+		}
+	}
+
+	void BlocksFinder::GenerateLegacyOutput(const std::string & outDir, const std::string & oldCoords) const
+	{
+		std::vector<std::vector<bool> > covered(storage_.GetChrNumber());
+		for (size_t i = 0; i < covered.size(); i++)
+		{
+			covered[i].assign(storage_.GetChrSequence(i).size(), false);
+		}
+
+		BlockList instance;
+		for (size_t chr = 0; chr < blockId_.size(); chr++)
+		{
+			for (size_t i = 0; i < blockId_[chr].size();)
+			{
+				if (blockId_[chr][i].block != Assignment::UNKNOWN_BLOCK)
+				{
+					int64_t bid = blockId_[chr][i].block;
+					size_t j = i;
+					for (; j < blockId_[chr].size() && blockId_[chr][i] == blockId_[chr][j]; j++);
+					j--;
+					int64_t cstart = storage_.GetIterator(chr, i, bid > 0).GetPosition(&storage_);
+					int64_t cend = storage_.GetIterator(chr, j, bid > 0).GetPosition(&storage_) + (bid > 0 ? k_ : -k_);
+					int64_t start = std::min(cstart, cend);
+					int64_t end = std::max(cstart, cend);
+					instance.push_back(BlockInstance(bid, chr, start, end));
+					std::fill(covered[chr].begin() + start, covered[chr].begin() + end, true);
+					i = j + 1;
+				}
+				else
+				{
+					++i;
+				}
+			}
+		}
+
+		CreateOutDirectory(outDir);
+		GenerateReport(instance, outDir + "/" + "coverage_report.txt");
+		ListBlocksIndices(instance, outDir + "/" + "blocks_coords.txt");
+		ListBlocksSequences(instance, outDir + "/" + "blocks_sequences.fasta");
 	}
 }
