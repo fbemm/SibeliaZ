@@ -3,7 +3,6 @@
 
 //#define _DEBUG_OUT
 
-
 #include <set>
 #include <map>
 #include <list>
@@ -18,7 +17,6 @@
 
 namespace Sibelia
 {
-	
 	extern const std::string DELIMITER;
 
 	class BlockInstance
@@ -92,7 +90,6 @@ namespace Sibelia
 
 			return it;
 		}
-
 
 		typedef std::pair<size_t, size_t> IndexPair;
 		template<class T, class F, class It>
@@ -300,6 +297,135 @@ namespace Sibelia
 				return block == assignment.block && instance == assignment.instance;
 			}
 		};
+
+		struct BranchData
+		{
+			std::vector<size_t> branchId;
+		};
+
+		typedef std::vector<std::vector<size_t> > BubbledBranches;
+		
+		void BubbledBranchesForward(int64_t vertexId, const std::vector<JunctionStorage::JunctionIterator> & instance, BubbledBranches & bulges) const
+		{						
+			std::vector<size_t> parallelEdge[4];
+			std::map<int64_t, BranchData> visit;
+			bulges.assign(instance.size(), std::vector<size_t>());
+			for (size_t i = 0; i < instance.size(); i++)
+			{
+				auto vertex = instance[i];
+				parallelEdge[TwoPaCo::DnaChar::MakeUpChar(vertex.GetChar(&storage_))].push_back(i);
+				for (int64_t startPosition = vertex++.GetPosition(&storage_); vertex.Valid(&storage_) && abs(startPosition - vertex.GetPosition(&storage_)) <= maxBranchSize_; ++vertex)
+				{
+					int64_t nowVertexId = vertex.GetVertexId(&storage_);
+					auto point = visit.find(nowVertexId);
+					if (point == visit.end())
+					{
+						BranchData bData;
+						bData.branchId.push_back(i);
+						visit[nowVertexId] = bData;
+					}
+					else
+					{
+						point->second.branchId.push_back(i);
+						break;
+					}
+				}
+			}
+
+			for (size_t i = 0; i < 4; i++)
+			{
+				for (size_t j = 0; j < parallelEdge[i].size(); j++)
+				{
+					for (size_t k = j + 1; k < parallelEdge[i].size(); k++)
+					{
+						size_t smallBranch = parallelEdge[i][j];
+						size_t largeBranch = parallelEdge[i][k];
+						bulges[smallBranch].push_back(largeBranch);
+					}
+				}
+			}
+
+			for (auto point = visit.begin(); point != visit.end(); ++point)
+			{
+				std::sort(point->second.branchId.begin(), point->second.branchId.end());
+				for (size_t j = 0; j < point->second.branchId.size(); j++)
+				{
+					for (size_t k = j + 1; k < point->second.branchId.size(); k++)
+					{
+						size_t smallBranch = point->second.branchId[j];
+						size_t largeBranch = point->second.branchId[k];
+						if (smallBranch != largeBranch && std::find(bulges[smallBranch].begin(), bulges[smallBranch].end(), largeBranch) == bulges[smallBranch].end())
+						{
+							bulges[smallBranch].push_back(largeBranch);
+						}						
+					}
+				}
+			}
+		}
+
+		void BubbledBranchesForward(int64_t vertexId, const std::vector<JunctionStorage::JunctionIterator> & instance, BubbledBranches & bulges) const
+		{
+			std::vector<size_t> parallelEdge[4];
+			std::map<int64_t, BranchData> visit;
+			bulges.assign(instance.size(), std::vector<size_t>());
+			for (size_t i = 0; i < instance.size(); i++)
+			{
+				auto vertex = instance[i];
+				auto prev = vertex - 1;
+				if (prev.Valid(&storage_))
+				{
+					parallelEdge[TwoPaCo::DnaChar::MakeUpChar(prev.GetChar(&storage_))].push_back(i);
+				}
+				
+				for (int64_t startPosition = vertex--.GetPosition(&storage_); vertex.Valid(&storage_) && abs(startPosition - vertex.GetPosition(&storage_)) <= maxBranchSize_; --vertex)
+				{
+					int64_t nowVertexId = vertex.GetVertexId(&storage_);
+					auto point = visit.find(nowVertexId);
+					if (point == visit.end())
+					{
+						BranchData bData;
+						bData.branchId.push_back(i);
+						visit[nowVertexId] = bData;
+					}
+					else
+					{
+						point->second.branchId.push_back(i);
+						break;
+					}
+				}
+			}
+
+			for (size_t i = 0; i < 4; i++)
+			{
+				for (size_t j = 0; j < parallelEdge[i].size(); j++)
+				{
+					for (size_t k = j + 1; k < parallelEdge[i].size(); k++)
+					{
+						size_t smallBranch = parallelEdge[i][j];
+						size_t largeBranch = parallelEdge[i][k];
+						bulges[smallBranch].push_back(largeBranch);
+					}
+				}
+			}
+
+			for (auto point = visit.begin(); point != visit.end(); ++point)
+			{
+				std::sort(point->second.branchId.begin(), point->second.branchId.end());
+				for (size_t j = 0; j < point->second.branchId.size(); j++)
+				{
+					for (size_t k = j + 1; k < point->second.branchId.size(); k++)
+					{
+						size_t smallBranch = point->second.branchId[j];
+						size_t largeBranch = point->second.branchId[k];
+						if (smallBranch != largeBranch && std::find(bulges[smallBranch].begin(), bulges[smallBranch].end(), largeBranch) == bulges[smallBranch].end())
+						{
+							bulges[smallBranch].push_back(largeBranch);
+						}
+					}
+				}
+			}
+		}
+
 
 		int64_t k_;
 		int64_t minBlockSize_;
