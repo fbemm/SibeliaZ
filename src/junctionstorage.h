@@ -237,12 +237,22 @@ namespace Sibelia
 			
 			bool operator < (const JunctionIterator & arg) const
 			{
+				if (IsPositiveStrand() != arg.IsPositiveStrand())
+				{
+					return !IsPositiveStrand();
+				}
+
 				if (GetChrId() != arg.GetChrId())
 				{
 					return GetChrId() < arg.GetChrId();
 				}
 
-				return GetIndex() < arg.GetIndex();
+				if (IsPositiveStrand())
+				{
+					return GetIndex() < arg.GetIndex();
+				}
+
+				return GetIndex() > arg.GetIndex();
 			}
 
 			bool operator == (const JunctionIterator & arg) const

@@ -194,6 +194,7 @@ namespace Sibelia
 
 			int64_t count = 0;
 			std::vector<int64_t> shuffle;
+			std::ofstream debugStream(debugOut.c_str());
 			for (int64_t v = -storage_.GetVerticesNumber() + 1; v < storage_.GetVerticesNumber(); v++)
 			{
 				for (size_t i = 0; i < storage_.GetInstancesCount(v); i++)
@@ -206,9 +207,43 @@ namespace Sibelia
 				}				
 			}
 
-			std::ofstream debugStream(debugOut.c_str());						
 			time_t mark = time(0);
+			BubbledBranches forwardBubble;
+			BubbledBranches backwardBubble;
+			std::vector<JunctionStorage::JunctionIterator> instance;			
+			for (int64_t vertex : shuffle)
+			{
+				instance.resize(storage_.GetInstancesCount(vertex));
+				for (size_t i = 0; i < storage_.GetInstancesCount(vertex); i++)
+				{
+					instance[i] = storage_.GetJunctionInstance(vertex, i);
+				}
 
+				BubbledBranchesForward(vertex, instance, forwardBubble);
+				BubbledBranchesBackward(vertex, instance, backwardBubble);
+
+				for (size_t i = 0; i < forwardBubble.size(); i++)
+				{
+					for (size_t j = 0; j < forwardBubble[i].size(); j++)
+					{
+						if (std::find(backwardBubble[i].begin(), backwardBubble[i].end(), forwardBubble[i][j]) == backwardBubble[i].end())
+						{
+							source_.push_back(Fork(instance[i], instance[j]));
+						}
+					}
+				}
+
+				for (size_t i = 0; i < backwardBubble.size(); i++)
+				{
+					for (size_t j = 0; j < backwardBubble[i].size(); j++)
+					{
+						if (std::find(forwardBubble[i].begin(), forwardBubble[i].end(), backwardBubble[i][j]) == forwardBubble[i].end())
+						{
+							sink_.push_back(Fork(instance[i], instance[j]));
+						}
+					}
+				}
+			}
 		}
 
 		
@@ -363,7 +398,7 @@ namespace Sibelia
 			}
 		}
 
-		void BubbledBranchesForward(int64_t vertexId, const std::vector<JunctionStorage::JunctionIterator> & instance, BubbledBranches & bulges) const
+		void BubbledBranchesBackward(int64_t vertexId, const std::vector<JunctionStorage::JunctionIterator> & instance, BubbledBranches & bulges) const
 		{
 			std::vector<size_t> parallelEdge[4];
 			std::map<int64_t, BranchData> visit;
@@ -426,11 +461,29 @@ namespace Sibelia
 			}
 		}
 
+		struct Fork
+		{
+			Fork(JunctionStorage::JunctionIterator it, JunctionStorage::JunctionIterator jt)
+			{
+				branch[0] = std::min(it, jt);
+				branch[1] = std::max(it, jt);
+			}
+
+			JunctionStorage::JunctionIterator branch[2];
+
+			bool operator < (const Fork & fork) const
+			{
+
+			}
+		};
+
 
 		int64_t k_;
 		int64_t minBlockSize_;
 		int64_t maxBranchSize_;
-		JunctionStorage & storage_;
+		std::vector<Fork> sink_;
+		std::vector<Fork> source_;
+		JunctionStorage & storage_;		
 		std::vector<std::vector<Edge> > syntenyPath_;
 		std::vector<std::vector<Assignment> > blockId_;	
 		std::string debugOut_;
