@@ -129,7 +129,7 @@ namespace Sibelia
 		class JunctionIterator
 		{
 		public:
-			JunctionIterator() : idx_(0)
+			JunctionIterator() : idx_(0), chrId_(0)
 			{
 
 			}
@@ -170,12 +170,12 @@ namespace Sibelia
 				return TwoPaCo::DnaChar::ReverseChar(storage_->sequence_[GetChrId()][pos - 1]);
 			}
 
-			uint64_t GetIndex() const
+			int64_t GetIndex() const
 			{
 				return idx_;
 			}
 
-			uint64_t GetRelativeIndex(const JunctionStorage * storage_) const
+			int64_t GetRelativeIndex(const JunctionStorage * storage_) const
 			{
 				if (IsPositiveStrand())
 				{
@@ -192,7 +192,7 @@ namespace Sibelia
 
 			bool Valid(const JunctionStorage * storage_) const
 			{
-				return idx_ >= 0 && idx_ < storage_->posChr_[GetChrId()].size();
+				return chrId_ != 0 && idx_ >= 0 && idx_ < storage_->posChr_[GetChrId()].size();
 			}
 
 			JunctionIterator& operator++ ()
@@ -340,89 +340,7 @@ namespace Sibelia
 			return JunctionIterator(coord.chr, coord.idx, posChr_[coord.chr][coord.idx].id == vertexId);
 		}
 
-		int64_t IngoingEdgesNumber(int64_t vertexId) const
-		{
-			return ingoingEdge_[vertexId + GetVerticesNumber()].size();
-		}
-
-		int64_t OutgoingEdgesNumber(int64_t vertexId) const
-		{
-			return outgoingEdge_[vertexId + GetVerticesNumber()].size();
-		}
 		
-		Edge IngoingEdge(int64_t vertexId, int64_t idx) const
-		{
-			return ingoingEdge_[vertexId + GetVerticesNumber()][idx];
-		}
-
-		Edge OutgoingEdge(int64_t vertexId, int64_t idx) const
-		{
-			return outgoingEdge_[vertexId + GetVerticesNumber()][idx];
-		}
-
-		void IngoingEdges(int64_t vertexId, std::vector<Edge> & list) const
-		{
-			list.clear();
-			for (auto coord : coordinate_[abs(vertexId)])
-			{
-				const Vertex & now = posChr_[coord.chr][coord.idx];
-				if (now.id == vertexId)
-				{
-					if (coord.idx > 0)
-					{
-						const Vertex & prev = posChr_[coord.chr][coord.idx - 1];
-						char ch = sequence_[coord.chr][prev.pos + k_];
-						char revCh = TwoPaCo::DnaChar::ReverseChar(sequence_[coord.chr][now.pos - 1]);
-						list.push_back(Edge(prev.id, now.id, ch, revCh, now.pos - prev.pos));
-					}
-				}
-				else
-				{					
-					if (coord.idx + 1 < posChr_[coord.chr].size())
-					{
-						const Vertex & prev = posChr_[coord.chr][coord.idx + 1];
-						char ch = TwoPaCo::DnaChar::ReverseChar(sequence_[coord.chr][prev.pos - 1]);
-						char revCh = sequence_[coord.chr][now.pos + k_];
-						list.push_back(Edge(-prev.id, -now.id, ch, revCh, prev.pos - now.pos));
-					}					
-				}
-			}
-
-			std::sort(list.begin(), list.end());
-			list.erase(std::unique(list.begin(), list.end()), list.end());
-		}
-
-		void OutgoingEdges(int64_t vertexId, std::vector<Edge> & list) const
-		{
-			list.clear();
-			for (auto coord : coordinate_[abs(vertexId)])
-			{
-				const Vertex & now = posChr_[coord.chr][coord.idx];
-				if (now.id == vertexId)
-				{
-					if (coord.idx + 1 < posChr_[coord.chr].size())
-					{
-						const Vertex & next = posChr_[coord.chr][coord.idx + 1];
-						char ch = sequence_[coord.chr][now.pos + k_];
-						char revCh = TwoPaCo::DnaChar::ReverseChar(sequence_[coord.chr][next.pos - 1]);
-						list.push_back(Edge(now.id, next.id, ch, revCh, next.pos - now.pos));
-					}
-				}
-				else
-				{
-					if (coord.idx > 0)
-					{
-						const Vertex & next = posChr_[coord.chr][coord.idx - 1];
-						char ch = TwoPaCo::DnaChar::ReverseChar(sequence_[coord.chr][now.pos - 1]);
-						char revCh = sequence_[coord.chr][now.pos + k_];
-						list.push_back(Edge(-now.id, -next.id, ch, revCh, now.pos - next.pos));
-					}
-				}
-			}
-
-			std::sort(list.begin(), list.end());
-			list.erase(std::unique(list.begin(), list.end()), list.end());
-		}
 
 		void Init(const std::string & inFileName, const std::string & genomesFileName)
 		{
@@ -455,15 +373,6 @@ namespace Sibelia
 					sequence_[record].push_back(ch);
 				}
 			}
-
-			int64_t vertices = GetVerticesNumber();
-			ingoingEdge_.resize(vertices * 2 + 1);
-			outgoingEdge_.resize(vertices * 2 + 1);
-			for (int64_t vertexId = -vertices + 1; vertexId < vertices; vertexId++)
-			{
-				IngoingEdges(vertexId, ingoingEdge_[vertexId + vertices]);
-				OutgoingEdges(vertexId, outgoingEdge_[vertexId + vertices]);
-			}
 		}
 				
 
@@ -483,8 +392,6 @@ namespace Sibelia
 		};
 
 		int64_t k_;
-		std::vector<std::vector<Edge> > ingoingEdge_;
-		std::vector<std::vector<Edge> > outgoingEdge_;
 		std::vector<std::string> sequence_;
 		std::vector<std::string> sequenceDescription_;
 		std::vector<VertexVector> posChr_;

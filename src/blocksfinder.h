@@ -226,27 +226,50 @@ namespace Sibelia
 				{
 					for (size_t j = 0; j < forwardBubble[i].size(); j++)
 					{
-						if (std::find(backwardBubble[i].begin(), backwardBubble[i].end(), forwardBubble[i][j]) == backwardBubble[i].end())
+						size_t k = forwardBubble[i][j];
+						if (std::find(backwardBubble[i].begin(), backwardBubble[i].end(), k) == backwardBubble[i].end())
 						{
-							source_.push_back(Fork(instance[i], instance[j]));
+							source_.push_back(Fork(instance[i], instance[k]));
 						}
 					}
-				}
-
-				for (size_t i = 0; i < backwardBubble.size(); i++)
-				{
-					for (size_t j = 0; j < backwardBubble[i].size(); j++)
-					{
-						if (std::find(forwardBubble[i].begin(), forwardBubble[i].end(), backwardBubble[i][j]) == forwardBubble[i].end())
-						{
-							sink_.push_back(Fork(instance[i], instance[j]));
-						}
-					}
-				}
+				}				
 			}
-		}
 
+			std::cout << "Done. " << time(0) - mark << std::endl;
+			mark = time(0);
+
+			int64_t total = 0;
+			for(size_t i = 0; i < source_.size(); i++)
+			{	
+				Fork sink = ExpandSourceFork(source_[i]);
+				total += abs(source_[i].branch[0].GetIndex() - sink.branch[0].GetIndex()) + abs(source_[i].branch[1].GetIndex() - sink.branch[1].GetIndex());
+				continue;
+				if (ChainLength(source_[i], sink) > minBlockSize)
+				{
+					std::stringstream fname;
+					fname << debugOut << i << ".dot";
+					std::ofstream pathOut(fname.str());
+					std::vector<std::pair<JunctionStorage::JunctionIterator, JunctionStorage::JunctionIterator> > visit;
+					pathOut << "digraph G\n{\nrankdir = LR\n";
+					PlotPath(source_[i], sink, pathOut, visit);
+					for (int j = 0; j < 2; j++)
+					{
+						for (auto it = source_[i].branch[j]; it != sink.branch[j]; ++it)
+						{
+							DumpVertex(it.GetVertexId(&storage_), pathOut, visit, 10);
+						}
+					}
+
+					pathOut << "}";
+				}				
+			}
+
+			std::cout << "Done. " << time(0) - mark << std::endl;
+			std::cout << total << std::endl;
+		}
 		
+
+
 		void GenerateLegacyOutput(const std::string & outDir, const std::string & oldCoords) const;
 	
 	private:
@@ -273,7 +296,8 @@ namespace Sibelia
 		void ListBlocksSequences(const BlockList & block, const std::string & fileName) const;
 		void ListChromosomesAsPermutations(const BlockList & block, const std::string & fileName) const;
 		std::vector<double> CalculateCoverage(GroupedBlockList::const_iterator start, GroupedBlockList::const_iterator end) const;			
-		
+				
+
 		template<class T>
 		void DumpVertex(int64_t id, std::ostream & out, T & visit, int64_t cnt = 5) const
 		{		
@@ -340,6 +364,88 @@ namespace Sibelia
 
 		typedef std::vector<std::vector<size_t> > BubbledBranches;
 		
+		struct Fork
+		{
+			Fork(JunctionStorage::JunctionIterator it, JunctionStorage::JunctionIterator jt)
+			{
+				branch[0] = std::min(it, jt);
+				branch[1] = std::max(it, jt);
+			}
+
+			JunctionStorage::JunctionIterator branch[2];
+		};
+
+		int64_t ChainLength(const Fork & now, const Fork & next) const
+		{
+			return std::min(abs(now.branch[0].GetPosition(&storage_) - next.branch[0].GetPosition(&storage_)),
+				abs(now.branch[1].GetPosition(&storage_) - next.branch[1].GetPosition(&storage_)));
+		}
+
+		Fork ExpandSourceFork(const Fork & source) const
+		{
+			for (auto now = source; ; )
+			{				
+				auto next = TakeBubbleStep(now);
+				if (next.branch[0].Valid(&storage_))
+				{					
+					int64_t vid0 = now.branch[0].GetVertexId(&storage_);
+					int64_t vid1 = now.branch[1].GetVertexId(&storage_);
+					assert(vid0 == vid1 &&
+						abs(now.branch[0].GetPosition(&storage_) - next.branch[0].GetPosition(&storage_)) < maxBranchSize_ &&
+						abs(now.branch[1].GetPosition(&storage_) - next.branch[1].GetPosition(&storage_)) < maxBranchSize_);
+					now = next;
+				}
+				else
+				{
+					return now;
+				}
+			}
+
+			return source;
+		}
+
+		template<class T>
+		void PlotPath(const Fork & source, const Fork & sink, std::ostream & out, T & visit) const
+		{
+			for (int j = 0; j < 2; j++)
+			{
+				out << source.branch[j].GetVertexId(&storage_) << "[shape=box]" << std::endl;
+				out << sink.branch[j].GetVertexId(&storage_) << "[shape=box]" << std::endl;
+				for (auto it = source.branch[j]; it != sink.branch[j]; ++it)
+				{
+					auto jt = it + 1;
+					auto pr = std::make_pair(it, jt);
+					out << it.GetVertexId(&storage_) << " -> " << jt.GetVertexId(&storage_)
+						<< "[label=\"" << it.GetChar(&storage_) << ", " << it.GetChrId() << ", " << it.GetPosition(&storage_) << ", " << abs(it.GetPosition(&storage_) - jt.GetPosition(&storage_)) << "\""
+						<< (it.IsPositiveStrand() ? "color=lightskyblue" : "color=orange") << "]\n";
+					visit.push_back(pr);
+				}
+			}
+		}
+		
+		Fork TakeBubbleStep(const Fork & source) const
+		{
+			auto it = source.branch[0];
+			std::map<int64_t, int64_t> firstBranch;
+			for (int64_t i = 1; abs(it.GetPosition(&storage_) - source.branch[0].GetPosition(&storage_)) < maxBranchSize_ && (++it).Valid(&storage_); i++)
+			{
+				int64_t d = abs(it.GetPosition(&storage_) - source.branch[0].GetPosition(&storage_));
+				firstBranch[it.GetVertexId(&storage_)] = i;
+			}
+
+			it = source.branch[1];			
+			for (int64_t i = 1; abs(it.GetPosition(&storage_) - source.branch[1].GetPosition(&storage_)) < maxBranchSize_ && (++it).Valid(&storage_); i++)
+			{
+				auto kt = firstBranch.find(it.GetVertexId(&storage_));
+				if (kt != firstBranch.end())
+				{
+					return Fork(source.branch[0] + kt->second, it);
+				}
+			}
+
+			return Fork(JunctionStorage::JunctionIterator(), JunctionStorage::JunctionIterator());
+		}
+
 		void BubbledBranchesForward(int64_t vertexId, const std::vector<JunctionStorage::JunctionIterator> & instance, BubbledBranches & bulges) const
 		{						
 			std::vector<size_t> parallelEdge[4];
@@ -348,7 +454,11 @@ namespace Sibelia
 			for (size_t i = 0; i < instance.size(); i++)
 			{
 				auto vertex = instance[i];
-				parallelEdge[TwoPaCo::DnaChar::MakeUpChar(vertex.GetChar(&storage_))].push_back(i);
+				if((vertex + 1).Valid(&storage_))
+				{
+					parallelEdge[TwoPaCo::DnaChar::MakeUpChar(vertex.GetChar(&storage_))].push_back(i);
+				}
+				
 				for (int64_t startPosition = vertex++.GetPosition(&storage_); vertex.Valid(&storage_) && abs(startPosition - vertex.GetPosition(&storage_)) <= maxBranchSize_; ++vertex)
 				{
 					int64_t nowVertexId = vertex.GetVertexId(&storage_);
@@ -362,7 +472,6 @@ namespace Sibelia
 					else
 					{
 						point->second.branchId.push_back(i);
-						break;
 					}
 				}
 			}
@@ -425,7 +534,6 @@ namespace Sibelia
 					else
 					{
 						point->second.branchId.push_back(i);
-						break;
 					}
 				}
 			}
@@ -459,23 +567,7 @@ namespace Sibelia
 					}
 				}
 			}
-		}
-
-		struct Fork
-		{
-			Fork(JunctionStorage::JunctionIterator it, JunctionStorage::JunctionIterator jt)
-			{
-				branch[0] = std::min(it, jt);
-				branch[1] = std::max(it, jt);
-			}
-
-			JunctionStorage::JunctionIterator branch[2];
-
-			bool operator < (const Fork & fork) const
-			{
-
-			}
-		};
+		}		
 
 
 		int64_t k_;
