@@ -13,106 +13,15 @@
 #include "streamfastaparser.h"
 
 namespace Sibelia
-{	
-	class Edge
-	{
-	public:
-		Edge() : startVertex_(INT64_MAX), endVertex_(INT64_MAX) {}
-
-		Edge(int64_t startVertex, int64_t endVertex, char ch, char revCh, int32_t length) :
-			startVertex_(startVertex), endVertex_(endVertex), ch_(ch), revCh_(revCh), length_(length)
-		{
-
-		}
-
-		int64_t GetStartVertex() const
-		{
-			return startVertex_;
-		}
-
-		int64_t GetEndVertex() const
-		{
-			return endVertex_;
-		}
-
-		char GetChar() const
-		{
-			return ch_;
-		}
-
-		int64_t GetLength() const
-		{
-			return length_;
-		}
-
-		Edge Reverse() const
-		{
-			return Edge(-endVertex_, -startVertex_, revCh_, ch_, length_);
-		}
-
-		char GetRevChar() const
-		{
-			return revCh_;
-		}
-
-		bool operator < (const Edge & e) const
-		{
-			if (startVertex_ != e.startVertex_)
-			{
-				return startVertex_ < e.startVertex_;
-			}
-
-			if (endVertex_ != e.endVertex_)
-			{
-				return endVertex_ < e.endVertex_;
-			}
-
-			if (ch_ != e.ch_)
-			{
-				return ch_ < e.ch_;
-			}
-
-			return false;
-		}
-	
-		bool Valid() const
-		{
-			return startVertex_ != INT64_MAX;
-		}
-
-		bool operator == (const Edge & e) const
-		{
-			return startVertex_ == e.startVertex_ && endVertex_ == e.endVertex_ && ch_ == e.ch_;
-		}
-
-		bool operator != (const Edge & e) const
-		{
-			return !(*this == e);
-		}
-
-	private:
-		int64_t startVertex_;
-		int64_t endVertex_;
-		char ch_;
-		char revCh_;
-		int32_t length_;
-	};
-
-	class EdgeHash
-	{
-	public:
-		std::hash<int64_t> f;
-
-		int64_t operator()(const Edge & e) const
-		{
-			int64_t value = e.GetStartVertex() | (int64_t(e.GetChar()) << int64_t(32));
-			return f(value);
-		}
-	};
-
+{
 	class GraphStorage
 	{
 	public:
+
+		typedef lemon::ListDigraph Graph;
+		typedef lemon::ListDigraph::Arc Arc;
+		typedef lemon::ListDigraph::Node Node;		
+
 		GraphStorage(const std::string & junctionsFileName, const std::string & genomesFileName, uint64_t k) : k_(k), maxId_(INT64_MIN),
 			arcChar_(g_), length_(g_), capacityLowerBound_(g_), capacityUpperBound_(g_)
 		{
@@ -188,6 +97,15 @@ namespace Sibelia
 			out << "}" << std::endl;
 		}
 
+		lemon::ListDigraph g_;
+		std::vector<int64_t> validJunctions_;
+		std::vector<lemon::ListDigraph::Node> inNode_;
+		std::vector<lemon::ListDigraph::Node> outNode_;
+		lemon::ListDigraph::ArcMap<int> length_;
+		lemon::ListDigraph::ArcMap<char> arcChar_;
+		lemon::ListDigraph::ArcMap<int> capacityLowerBound_;
+		lemon::ListDigraph::ArcMap<int> capacityUpperBound_;
+
 	private:
 
 		int64_t Vid(int64_t v) const
@@ -227,18 +145,8 @@ namespace Sibelia
 
 		}
 
-		
-
 		int64_t k_;
-		int64_t maxId_;
-		lemon::ListDigraph g_;
-		std::vector<int64_t> validJunctions_;
-		std::vector<lemon::ListDigraph::Node> inNode_;
-		std::vector<lemon::ListDigraph::Node> outNode_;		
-		lemon::ListDigraph::ArcMap<int> length_;
-		lemon::ListDigraph::ArcMap<char> arcChar_;
-		lemon::ListDigraph::ArcMap<int> capacityLowerBound_;
-		lemon::ListDigraph::ArcMap<int> capacityUpperBound_;	
+		int64_t maxId_;		
 	};
 
 }

@@ -9,8 +9,12 @@ namespace Sibelia
 		int64_t lookingDepth,
 		int64_t sampleSize,
 		int64_t threads,
-		std::vector<std::vector<Edge> > & ret)
+		std::vector<std::vector<GraphStorage::Arc> > & ret)
 	{
-		
+		LightPath path(storage, maxBranchSize, minBlockSize, maxFlankingSize);
+		for (auto v : storage.validJunctions_)
+		{
+			path.TryExtend(v);
+		}
 	}
 }

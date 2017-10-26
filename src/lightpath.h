@@ -6,14 +6,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <lemon/smart_graph.h>
-#include <lemon/lgf_reader.h>
-#include <lemon/lgf_writer.h>
-#include <lemon/list_graph.h>
-#include <lemon/cycle_canceling.h>
-
-#include <lemon/preflow.h>
-
 #include "graphstorage.h"
 
 namespace Sibelia
@@ -34,20 +26,20 @@ namespace Sibelia
 		struct Point
 		{
 		private:
-			Edge edge;
+			GraphStorage::Arc arc;
 			int64_t startDistance;
 		public:
 			Point() {}
-			Point(Edge edge, int64_t startDistance) : edge(edge), startDistance(startDistance) {}
+			Point(GraphStorage::Arc arc, int64_t startDistance) : arc(arc), startDistance(startDistance) {}
 
-			int64_t Vertex() const
+			GraphStorage::Node Vertex(GraphStorage::Graph & g) const
 			{
-				return edge.GetEndVertex();
+				return g.target(arc);
 			}
 
-			Edge Edge() const
+			GraphStorage::Arc Arc() const
 			{
-				return edge;
+				return arc;
 			}
 
 			int64_t StartDistance() const
@@ -57,7 +49,7 @@ namespace Sibelia
 			
 			bool operator == (const Point & p) const
 			{
-				return startDistance == p.startDistance && edge == p.edge;
+				return startDistance == p.startDistance && arc == p.arc;
 			}
 
 			bool operator != (const Point & p) const
@@ -83,7 +75,7 @@ namespace Sibelia
 
 		void TryExtend(int64_t origin)
 		{
-			Init(origin);			
+			body_.clear();
 		}
 
 		void FinalizeFlow(GraphStorage & storage) const
@@ -101,17 +93,11 @@ namespace Sibelia
 		std::vector<Point> body_;
 		std::unordered_set<int64_t> insideBody_;
 		GraphStorage & storage_;
-		
-
-		void Init(int64_t origin)
-		{
-			body_.clear();
-		}
-
+			
 		bool PushBack()
 		{
 			int64_t prevDistance = body_.empty() ? 0 : body_.back().StartDistance();
-			int64_t prevVertex = body_.empty() ? origin_ : body_.back().Edge().GetEndVertex();
+//			int64_t prevVertex = body_.empty() ? origin_ : body_.back().Edge().GetEndVertex();
 			/*
 			Edge e = storage_->RandomOutEdge(prevVertex);
 			if (e.Valid() && e.GetEndVertex() != origin_ && insideBody_.find(e.GetEndVertex()) == insideBody_.end())
@@ -138,7 +124,7 @@ namespace Sibelia
 		int64_t lookingDepth,
 		int64_t sampleSize,
 		int64_t threads,
-		std::vector<std::vector<Edge> > & ret);
+		std::vector<std::vector<GraphStorage::Arc> > & ret);
 }
 
 #endif

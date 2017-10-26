@@ -142,7 +142,7 @@ int main(int argc, char * argv[])
 
 		cmd.parse(argc, argv);
 
-		std::vector<std::vector<Sibelia::Edge> > lightSyntenyPath;
+		std::vector<std::vector<Sibelia::GraphStorage::Arc> > lightSyntenyPath;
 		Sibelia::GraphStorage storage(inFileName.getValue(), genomesFileName.getValue(), kvalue.getValue());
 		Sibelia::FindLightPaths(storage, 
 			minBlockSize.getValue(),
@@ -152,15 +152,6 @@ int main(int argc, char * argv[])
 			sampleSize.getValue(),
 			threads.getValue(),
 			lightSyntenyPath);
-//		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
-/*		finder.FindBlocks(minBlockSize.getValue(),
-			maxBranchSize.getValue(),
-			maxFlankingSize.getValue(),
-			lookingDepth.getValue(),
-			sampleSize.getValue(),
-			threads.getValue(),
-			outDirName.getValue() + "/paths.txt");*/
-//		finder.GenerateLegacyOutput(outDirName.getValue());
 		std::ofstream lightDumpStream(outDirName.getValue() + "/light_graph.dot");
 		storage.DumpLight(lightDumpStream);
 	}
