@@ -7,32 +7,10 @@
 #include <algorithm>
 #include "distancekeeper.h"
 
-
-#include <tbb/mutex.h>
-#include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
-#include <tbb/task_scheduler_init.h>
-#include <tbb/concurrent_vector.h>
 
 namespace Sibelia
 {
-	struct Assignment
-	{
-		int32_t block;
-		int32_t instance;
-		Assignment()
-		{
-
-		}
-
-		bool operator == (const Assignment & assignment) const
-		{
-			return block == assignment.block && instance == assignment.instance;
-		}
-	};
-
-	struct BestPath;
-
 	struct SmallPath
 	{
 	public:
@@ -277,9 +255,9 @@ namespace Sibelia
 			SmallPath * path;
 			int64_t vertex;
 			int64_t distance;
-			std::atomic<bool> & failFlag;
+			bool & failFlag;
 
-			PointPushFrontWorker(SmallPath * path, int64_t vertex, int64_t distance, Edge e, std::atomic<bool> & failFlag) : path(path), vertex(vertex), e(e), failFlag(failFlag), distance(distance)
+			PointPushFrontWorker(SmallPath * path, int64_t vertex, int64_t distance, Edge e, bool & failFlag) : path(path), vertex(vertex), e(e), failFlag(failFlag), distance(distance)
 			{
 
 			}
@@ -342,9 +320,9 @@ namespace Sibelia
 			SmallPath * path;
 			int64_t vertex;
 			int64_t distance;
-			std::atomic<bool> & failFlag;
+			bool & failFlag;
 
-			PointPushBackWorker(SmallPath * path, int64_t vertex, int64_t distance, Edge e, std::atomic<bool> & failFlag) : path(path), vertex(vertex), e(e), failFlag(failFlag), distance(distance)
+			PointPushBackWorker(SmallPath * path, int64_t vertex, int64_t distance, Edge e, bool & failFlag) : path(path), vertex(vertex), e(e), failFlag(failFlag), distance(distance)
 			{
 
 			}
@@ -403,37 +381,25 @@ namespace Sibelia
 		bool PointPushBack(const Edge & e)
 		{
 			int64_t vertex = e.GetEndVertex();
-			if (distanceKeeper_.IsSet(vertex))
-			{
-				return false;
-			}
-
-			std::atomic<bool> failFlag;
+			bool failFlag;
 			failFlag = false;
 			int64_t startVertexDistance = rightBody_.empty() ? 0 : rightBody_.back().EndDistance();
 			int64_t endVertexDistance = startVertexDistance + e.GetLength();
 			PointPushBackWorker(this, vertex, endVertexDistance, e, failFlag)(tbb::blocked_range<size_t>(0, storage_->GetInstancesCount(vertex)));
 			rightBody_.push_back(Point(e, startVertexDistance));
-			distanceKeeper_.Set(e.GetEndVertex(), endVertexDistance);		
 			return !failFlag;
 		}
 
 		
 		bool PointPushFront(const Edge & e)
 		{
-			int64_t vertex = e.GetStartVertex();
-			if (distanceKeeper_.IsSet(vertex))
-			{
-				return false;
-			}
-
-			std::atomic<bool> failFlag;
+			int64_t vertex = e.GetStartVertex();			
+			bool failFlag;
 			failFlag = false;
 			int64_t endVertexDistance = leftBody_.empty() ? 0 : leftBody_.back().StartDistance();
 			int64_t startVertexDistance = endVertexDistance - e.GetLength();
 			PointPushFrontWorker(this, vertex, startVertexDistance, e, failFlag)(tbb::blocked_range<size_t>(0, storage_->GetInstancesCount(vertex)));
 			leftBody_.push_back(Point(e, startVertexDistance));
-			distanceKeeper_.Set(e.GetStartVertex(), startVertexDistance);			
 			return !failFlag;
 		}		
 
@@ -486,32 +452,14 @@ namespace Sibelia
 
 		void Clear()
 		{
-			for (auto pt : leftBody_)
-			{
-				distanceKeeper_.Unset(pt.GetEdge().GetStartVertex());
-			}
-
-			for (auto pt : rightBody_)
-			{
-				distanceKeeper_.Unset(pt.GetEdge().GetEndVertex());
-			}
-
 			leftBody_.clear();
 			rightBody_.clear();
-			instance_.clear();
-			distanceKeeper_.Unset(origin_);
-			for (int64_t v1 = -storage_->GetVerticesNumber() + 1; v1 < storage_->GetVerticesNumber(); v1++)
-			{
-				assert(!distanceKeeper_.IsSet(v1));
-			}
-
 			instance_.clear();
 		}
 
 	private:
 
 
-		friend struct BestPath;
 
 		std::vector<Point> leftBody_;
 		std::vector<Point> rightBody_;
@@ -525,6 +473,41 @@ namespace Sibelia
 		const JunctionStorage * storage_;
 	};
 
+	struct SmallBestPath
+	{
+		int64_t score;
+		tbb::mutex mutex_;
+		std::vector<SmallPath::Instance> instance;
+
+		void Init()
+		{
+			score = 0;
+			instance.clear();
+		}
+
+		void Clear()
+		{
+			Init();
+		}
+
+		void Update(const SmallPath & path, int64_t minBlockSize)
+		{
+			tbb::mutex::scoped_lock lock(mutex_);
+			int64_t newScore = path.Score(true);
+			if (newScore > score && path.MiddlePathLength() >= minBlockSize)
+			{
+				score = path.Score(true);
+				instance.clear();
+				for (auto inst : path.Instances())
+				{
+					if (path.IsGoodInstance(inst))
+					{
+						instance.push_back(inst);
+					}
+				}
+			}
+		}
+	};
 
 }
 
