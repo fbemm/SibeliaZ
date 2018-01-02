@@ -123,11 +123,6 @@ namespace Sibelia
 				}
 			}
 
-			bool SinglePoint() const
-			{
-				return front_ == back_;
-			}
-
 			JunctionStorage::JunctionSequentialIterator Front() const
 			{
 				return front_;
@@ -315,6 +310,11 @@ namespace Sibelia
 
 		bool Compatible(const JunctionStorage::JunctionSequentialIterator & start, const JunctionStorage::JunctionSequentialIterator & end, const Edge & e) const
 		{
+			if (start.IsPositiveStrand() != end.IsPositiveStrand())
+			{
+				return false;
+			}
+
 			int64_t diff = end.GetPosition() - start.GetPosition();
 			if (start.IsPositiveStrand())
 			{
@@ -345,7 +345,7 @@ namespace Sibelia
 
 			return true;
 		}		
-		/*
+		
 		class PointPushFrontWorker
 		{
 		public:
@@ -362,46 +362,45 @@ namespace Sibelia
 
 			void operator()() const
 			{
+				path->extended_.assign(path->storage_->GetInstancesCount(vertex), false);
+				for (auto nowIt = path->instance_.begin(); nowIt != path->instance_.end(); ++nowIt)
+				{
+					while (true)
+					{
+						auto extension = path->storage_->InstanceExtensionBackward(nowIt->Front(), vertex);
+						if (extension.Valid() &&
+							!extension.IsUsed() &&
+							!path->extended_[extension.GetItIndex()] &&
+							path->Compatible(extension.SequentialIterator(), nowIt->Front(), e))
+						{
+							nowIt->ChangeFront(extension.SequentialIterator(), distance);
+							path->extended_[extension.GetItIndex()] = true;
+						}
+						else
+						{
+							break;
+						}
+					}
+
+					int64_t nextLength = abs(nowIt->Back().GetPosition() - nowIt->Front().GetPosition());
+					int64_t leftFlankSize = -(path->leftBodyFlank_ - nowIt->LeftFlankDistance());
+					int64_t rightFlankSize = path->rightBodyFlank_ - nowIt->RightFlankDistance();
+					if (nextLength >= path->minBlockSize_ && (leftFlankSize > path->maxFlankingSize_ || rightFlankSize > path->maxFlankingSize_))
+					{
+						failFlag = true;
+						break;
+					}
+				}
+
 				for (JunctionStorage::JunctionIterator nowIt(vertex); nowIt.Valid() && !failFlag; nowIt++)
 				{
-					bool newInstance = true;
-					if (!nowIt.IsUsed())
+					if (!nowIt.IsUsed() && !path->extended_[nowIt.GetItIndex()])
 					{
-						auto & instanceSet = path->instance_[nowIt.GetChrId()];
-						auto inst = instanceSet.upper_bound(Instance(nowIt.SequentialIterator(), 0));
-						if (inst != instanceSet.end() && inst->Within(nowIt))
-						{
-							continue;
-						}
-
-						if (nowIt.IsPositiveStrand())
-						{
-							if (inst != instanceSet.end() && path->Compatible(nowIt.SequentialIterator(), inst->Front(), e))
-							{
-								newInstance = false;
-							}
-						}
-						else
-						{
-							if (inst != instanceSet.begin() && path->Compatible(nowIt.SequentialIterator(), (--inst)->Front(), e))
-							{
-								newInstance = false;
-							}
-						}
-
-						if (!newInstance && inst->Front().GetVertexId() != vertex)
-						{						
-							const_cast<Instance&>(*inst).ChangeFront(nowIt.SequentialIterator(), distance);
-						}
-						else
-						{
-							path->allInstances_.insert(instanceSet.insert(Instance(nowIt.SequentialIterator(), distance)));
-						}
+						path->instance_.push_back(Instance(nowIt.SequentialIterator(), distance));
 					}
 				}
 			}
-
-		};*/
+		};
 
 		class PointPushBackWorker
 		{
@@ -484,7 +483,7 @@ namespace Sibelia
 			return !failFlag;
 		}
 
-		/*
+		
 		bool PointPushFront(const Edge & e)
 		{
 			int64_t vertex = e.GetStartVertex();
@@ -501,25 +500,13 @@ namespace Sibelia
 			distanceKeeper_.Set(e.GetStartVertex(), startVertexDistance);
 			leftBodyFlank_ = leftBody_.back().StartDistance();
 
-			for (auto nowIt : allInstances_)
-			{
-				int64_t nextLength = abs(nowIt->Front().GetPosition() - nowIt->Back().GetPosition());
-				int64_t rightFlankSize = rightBodyFlank_ - nowIt->RightFlankDistance();
-				assert(rightFlankSize >= 0);
-				if (nextLength >= minBlockSize_ && rightFlankSize > maxFlankingSize_)
-				{
-					failFlag = true;
-					break;
-				}
-			}
-
 			if (failFlag)
 			{
 				PointPopFront();
 			}
 
 			return !failFlag;
-		}*/
+		}
 
 		int64_t Score(bool final = false) const
 		{
@@ -622,36 +609,33 @@ namespace Sibelia
 				}
 			}
 		}
-
-		/*
+		
 		void PointPopFront()
 		{
 			int64_t lastVertex = leftBody_.back().GetEdge().GetStartVertex();
 			leftBody_.pop_back();
 			distanceKeeper_.Unset(lastVertex);
 			leftBodyFlank_ = leftBody_.empty() ? 0 : leftBody_.back().StartDistance();
-			for (auto kt = allInstances_.begin(); kt != allInstances_.end(); )
+			for (int64_t i = instance_.size() - 1; i >= 0; i--)
 			{
-				auto it = *kt;
+				auto it = instance_.begin() + i;
 				if (it->Front().GetVertexId() == lastVertex)
 				{
 					if (it->Front() == it->Back())
 					{
-						instance_[it->Front().GetChrId()].erase(it);
-						kt = allInstances_.erase(kt);
+						assert(i == instance_.size() - 1);
+						instance_.pop_back();
 					}
 					else
 					{
-						bool inc = true;
 						auto jt = it->Front();
 						while (true)
 						{
 							assert(jt.Valid());
 							if (jt == it->Back())
 							{
-								inc = false;
-								instance_[it->Front().GetChrId()].erase(it);
-								kt = allInstances_.erase(kt);
+								assert(i == instance_.size() - 1);
+								instance_.pop_back();
 								break;
 							}
 
@@ -665,20 +649,11 @@ namespace Sibelia
 								++jt;
 							}
 						}
-
-						if (inc)
-						{
-							++kt;
-						}						
 					}
-				}
-				else
-				{
-					++kt;
-				}
+				}				
 			}
 		}
-		*/
+		
 		void Clear()
 		{
 			for (auto pt : leftBody_)

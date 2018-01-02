@@ -502,7 +502,6 @@ namespace Sibelia
 				return ret;
 			}
 
-
 			bool operator < (const JunctionIterator & arg) const
 			{
 				if (GetChrId() != arg.GetChrId())
@@ -629,6 +628,32 @@ namespace Sibelia
 				}
 			}
 			
+			return JunctionIterator();
+		}
+
+		JunctionIterator InstanceExtensionBackward(JunctionSequentialIterator back, int64_t vid) const
+		{
+			if (back.IsPositiveStrand())
+			{
+				for (JunctionIterator it(vid, GetInstancesCount(vid) - 1); it.Valid(); --it)
+				{
+					if (it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() < back.GetPosition())
+					{
+						return it;
+					}
+				}				
+			}
+			else
+			{
+				for (JunctionIterator it(vid, 0); it.Valid(); ++it)
+				{
+					if (!it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() > back.GetPosition())
+					{
+						return it;
+					}
+				}
+			}
+
 			return JunctionIterator();
 		}
 
