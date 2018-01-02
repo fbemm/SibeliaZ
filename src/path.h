@@ -70,7 +70,6 @@ namespace Sibelia
 		struct Instance
 		{	
 		private:
-			int32_t compareIdx_;
 			int32_t frontDistance_;
 			int32_t backDistance_;
 			JunctionStorage::JunctionSequentialIterator front_;
@@ -97,8 +96,7 @@ namespace Sibelia
 			Instance(const JunctionStorage::JunctionSequentialIterator & it, int64_t distance) : front_(it),
 				back_(it),
 				frontDistance_(distance),
-				backDistance_(distance),
-				compareIdx_(it.GetIndex())
+				backDistance_(distance)
 			{
 
 			}
@@ -107,20 +105,12 @@ namespace Sibelia
 			{
 				front_ = it;
 				frontDistance_ = distance;
-				if (!back_.IsPositiveStrand())
-				{
-					compareIdx_ = front_.GetIndex();
-				}
 			}
 
 			void ChangeBack(const JunctionStorage::JunctionSequentialIterator & it, int64_t distance)
 			{
 				back_ = it;
 				backDistance_ = distance;
-				if (back_.IsPositiveStrand())
-				{
-					compareIdx_ = back_.GetIndex();
-				}
 			}
 
 			JunctionStorage::JunctionSequentialIterator Front() const
@@ -150,10 +140,6 @@ namespace Sibelia
 				return it.GetIndex() >= left && it.GetIndex() <= right;
 			}
 
-			bool operator < (const Instance & inst) const
-			{				
-				return compareIdx_ < inst.compareIdx_;
-			}
 		};
 
 		struct Point
@@ -587,14 +573,7 @@ namespace Sibelia
 						auto jt = it->Back();
 						while (true)
 						{
-							auto vid = jt.GetVertexId();
-							if (jt == it->Front())
-							{								
-								assert(i == instance_.size() - 1);
-								instance_.pop_back();
-								break;
-							}
-							
+							auto vid = jt.GetVertexId();														
 							if (distanceKeeper_.IsSet(jt.GetVertexId()))
 							{
 								const_cast<Instance&>(*it).ChangeBack(jt, distanceKeeper_.Get(jt.GetVertexId()));
@@ -602,6 +581,13 @@ namespace Sibelia
 							}
 							else
 							{
+								if (jt == it->Front())
+								{
+									assert(i == instance_.size() - 1);
+									instance_.pop_back();
+									break;
+								}
+
 								--jt;
 							}
 						}
@@ -631,14 +617,7 @@ namespace Sibelia
 						auto jt = it->Front();
 						while (true)
 						{
-							assert(jt.Valid());
-							if (jt == it->Back())
-							{
-								assert(i == instance_.size() - 1);
-								instance_.pop_back();
-								break;
-							}
-
+							assert(jt.Valid());						
 							if (distanceKeeper_.IsSet(jt.GetVertexId()))
 							{
 								const_cast<Instance&>(*it).ChangeFront(jt, distanceKeeper_.Get(jt.GetVertexId()));
@@ -646,6 +625,13 @@ namespace Sibelia
 							}
 							else
 							{
+								if (jt == it->Back())
+								{
+									assert(i == instance_.size() - 1);
+									instance_.pop_back();
+									break;
+								}
+
 								++jt;
 							}
 						}
