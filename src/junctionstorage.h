@@ -132,6 +132,16 @@ namespace Sibelia
 			{
 
 			}
+
+			bool operator < (const Vertex & v) const
+			{
+				if (chr != v.chr)
+				{
+					return chr < v.chr;
+				}
+
+				return idx < v.idx;
+			}
 		}; 
 		
 		struct Position
@@ -421,6 +431,11 @@ namespace Sibelia
 				return JunctionStorage::this_->vertex_[abs(vid_)][iidx_].idx;
 			}
 
+			uint64_t GetItIndex() const
+			{
+				return iidx_;
+			}
+
 			uint64_t GetRelativeIndex() const
 			{
 				if (IsPositiveStrand())
@@ -474,6 +489,20 @@ namespace Sibelia
 				return ret;
 			}
 
+			JunctionIterator& operator-- ()
+			{
+				--iidx_;
+				return *this;
+			}
+
+			JunctionIterator operator-- (int)
+			{
+				JunctionIterator ret(*this);
+				--iidx_;
+				return ret;
+			}
+
+
 			bool operator < (const JunctionIterator & arg) const
 			{
 				if (GetChrId() != arg.GetChrId())
@@ -500,12 +529,12 @@ namespace Sibelia
 
 		private:			
 			
-			JunctionIterator(int64_t vid, size_t iidx) : iidx_(iidx), vid_(vid)
+			JunctionIterator(int64_t vid, int64_t iidx) : iidx_(iidx), vid_(vid)
 			{
 			}
 
 			friend class JunctionStorage;
-			size_t iidx_;
+			int64_t iidx_;
 			int64_t vid_;
 
 		};
@@ -577,6 +606,32 @@ namespace Sibelia
 			return JunctionSequentialIterator(chrId, chrSize_[chrId], isPositiveStrand);
 		}
 
+		JunctionIterator InstanceExtensionForward(JunctionSequentialIterator back, int64_t vid) const
+		{
+			if (back.IsPositiveStrand())
+			{
+				for (JunctionIterator it(vid, 0); it.Valid(); ++it)
+				{
+					if (it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() > back.GetPosition())
+					{
+						return it;
+					}
+				}
+			}
+			else
+			{
+				for (JunctionIterator it(vid, GetInstancesCount(vid) - 1); it.Valid(); --it)
+				{
+					if (!it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() < back.GetPosition())
+					{
+						return it;
+					}
+				}
+			}
+			
+			return JunctionIterator();
+		}
+
 		int64_t GetVerticesNumber() const
 		{
 			return vertex_.size();
@@ -590,125 +645,6 @@ namespace Sibelia
 		size_t MutexNumber() const
 		{
 			return 1 << mutexBits_;
-		}
-		
-		int64_t IngoingEdgesNumber(int64_t vertexId) const
-		{
-			return ingoingEdge_[vertexId + GetVerticesNumber()].size();
-		}
-
-		int64_t OutgoingEdgesNumber(int64_t vertexId) const
-		{
-			return outgoingEdge_[vertexId + GetVerticesNumber()].size();
-		}
-
-		Edge IngoingEdge(int64_t vertexId, int64_t idx) const
-		{
-			return ingoingEdge_[vertexId + GetVerticesNumber()][idx];
-		}
-
-		Edge OutgoingEdge(int64_t vertexId, int64_t idx) const
-		{
-			return outgoingEdge_[vertexId + GetVerticesNumber()][idx];
-		}
-
-		void IngoingEdges(int64_t vertexId, std::vector<Edge> & list) const
-		{
-			list.clear();
-			for (auto now : vertex_[abs(vertexId)])
-			{
-				if (now.id == vertexId)
-				{
-					if (now.idx > 0)
-					{
-						const Position & prev = position_[now.chr][now.idx - 1];
-						char ch = sequence_[now.chr][prev.pos + k_];
-						char revCh = TwoPaCo::DnaChar::ReverseChar(sequence_[now.chr][now.pos - 1]);
-						Edge newEdge(prev.id, now.id, ch, revCh, now.pos - prev.pos, 1);
-						auto it = std::find(list.begin(), list.end(), newEdge);
-						if (it == list.end())
-						{
-							list.push_back(newEdge);
-						}
-						else
-						{
-							it->Inc();
-						}
-					}
-				}
-				else
-				{					
-					if (now.idx + 1 < chrSize_[now.chr])
-					{
-						const Position & prev = position_[now.chr][now.idx + 1];
-						char ch = TwoPaCo::DnaChar::ReverseChar(sequence_[now.chr][prev.pos - 1]);
-						char revCh = sequence_[now.chr][now.pos + k_];
-						Edge newEdge(-prev.id, -now.id, ch, revCh, prev.pos - now.pos, 1);
-						auto it = std::find(list.begin(), list.end(), newEdge);
-						if (it == list.end())
-						{
-							list.push_back(newEdge);
-						}
-						else
-						{
-							it->Inc();
-						}
-					}					
-				}
-			}
-
-			std::sort(list.begin(), list.end());
-			list.erase(std::unique(list.begin(), list.end()), list.end());
-		}
-				
-		void OutgoingEdges(int64_t vertexId, std::vector<Edge> & list) const
-		{
-			list.clear();
-			for (auto now : vertex_[abs(vertexId)])
-			{
-				if (now.id == vertexId)
-				{
-					if (now.idx + 1 < chrSize_[now.chr])
-					{
-						const Position & next = position_[now.chr][now.idx + 1];
-						char ch = sequence_[now.chr][now.pos + k_];
-						char revCh = TwoPaCo::DnaChar::ReverseChar(sequence_[now.chr][next.pos - 1]);						
-						Edge newEdge = Edge(now.id, next.id, ch, revCh, next.pos - now.pos, 1);
-						auto it = std::find(list.begin(), list.end(), newEdge);
-						if (it == list.end())
-						{
-							list.push_back(newEdge);
-						}
-						else
-						{
-							it->Inc();
-						}
-						
-					}
-				}
-				else
-				{
-					if (now.idx > 0)
-					{
-						const Position & next = position_[now.chr][now.idx - 1];
-						char ch = TwoPaCo::DnaChar::ReverseChar(sequence_[now.chr][now.pos - 1]);
-						char revCh = sequence_[now.chr][now.pos + k_];
-						Edge newEdge(-now.id, -next.id, ch, revCh, now.pos - next.pos, 1);
-						auto it = std::find(list.begin(), list.end(), newEdge);
-						if (it == list.end())
-						{
-							list.push_back(newEdge);
-						}
-						else
-						{
-							it->Inc();
-						}
-					}
-				}
-			}
-
-			std::sort(list.begin(), list.end());
-			list.erase(std::unique(list.begin(), list.end()), list.end());
 		}
 
 		void Init(const std::string & inFileName, const std::string & genomesFileName, int64_t threads)
@@ -777,6 +713,8 @@ namespace Sibelia
 					vertex_[i][j].ch = sequence_[chr][pos_ + JunctionStorage::this_->k_];
 					vertex_[i][j].revCh = pos_ > 0 ? TwoPaCo::DnaChar::ReverseChar(sequence_[chr][pos_ - 1]) : 'N';
 				}
+
+				std::sort(vertex_[i].begin(), vertex_[i].end());
 			}
 			
 			mutex_.resize(GetChrNumber());
@@ -814,8 +752,6 @@ namespace Sibelia
 
 		int64_t k_;
 		int64_t mutexBits_;
-		std::vector<std::vector<Edge> > ingoingEdge_;
-		std::vector<std::vector<Edge> > outgoingEdge_;
 		std::vector<std::string> sequence_;
 		std::vector<std::string> sequenceDescription_;		
 		std::vector<int64_t> chrSizeBits_;

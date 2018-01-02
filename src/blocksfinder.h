@@ -226,7 +226,7 @@ namespace Sibelia
 							}
 						}
 			
-
+						/*
 						while (true)
 						{
 							int64_t prevBestScore = currentPath.Score(finder.scoreFullChains_);
@@ -235,7 +235,7 @@ namespace Sibelia
 							{
 								break;
 							}
-						}
+						}*/
 						
 						if (!finder.TryFinalizeBlock(currentPath, goodInstance, std::cerr))
 						{
@@ -662,11 +662,11 @@ namespace Sibelia
 						{
 							goodInstance.first = score;
 							goodInstance.second.clear();
-							for (auto it : currentPath.AllInstances())
+							for (auto & it : currentPath.AllInstances())
 							{
-								if (currentPath.IsGoodInstance(*it))
+								if (currentPath.IsGoodInstance(it))
 								{
-									goodInstance.second.push_back(*it);
+									goodInstance.second.push_back(it);
 								}
 							}
 						}
@@ -684,7 +684,7 @@ namespace Sibelia
 
 			return true;
 		}
-
+		/*
 		bool ExtendPathDijkstraBackward(Path & currentPath, std::vector<uint32_t> & count, std::vector<uint32_t> & data, std::pair<int64_t, std::vector<Path::Instance> > & goodInstance, int64_t & score)
 		{	
 			std::pair<int32_t, NextVertex> nextBackwardVid;
@@ -729,7 +729,7 @@ namespace Sibelia
 			}
 
 			return true;
-		}
+		}*/
 
 		int64_t k_;
 		std::atomic<int64_t> count_;
