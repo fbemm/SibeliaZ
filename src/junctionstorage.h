@@ -133,14 +133,29 @@ namespace Sibelia
 
 			}
 
-			bool operator < (const Vertex & v) const
+			Vertex(int32_t chr, int32_t idx) : chr(chr), idx(idx)
 			{
-				if (chr != v.chr)
+
+			}
+
+			static bool CompareForward(const Vertex & v1, const Vertex & v2)
+			{
+				if (v1.chr != v2.chr)
 				{
-					return chr < v.chr;
+					return v1.chr < v2.chr;
 				}
 
-				return idx < v.idx;
+				return v1.idx < v2.idx;
+			}
+
+			static bool CompareBackward(const Vertex & v1, const Vertex & v2)
+			{
+				if (v1.chr != v2.chr)
+				{
+					return v1.chr > v2.chr;
+				}
+
+				return v1.idx > v2.idx;
 			}
 		}; 
 		
@@ -607,24 +622,22 @@ namespace Sibelia
 
 		JunctionIterator InstanceExtensionForward(JunctionSequentialIterator back, int64_t vid) const
 		{
+			int64_t adjVid = abs(vid);
 			if (back.IsPositiveStrand())
 			{
-				for (JunctionIterator it(vid, 0); it.Valid(); ++it)
+				auto it = std::upper_bound(vertex_[adjVid].begin(), vertex_[adjVid].end(), Vertex(back.GetChrId(), back.GetIndex()), Vertex::CompareForward);
+				if (it != vertex_[adjVid].end())
 				{
-					if (it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() > back.GetPosition())
-					{
-						return it;
-					}
+					return JunctionIterator(vid, it - vertex_[adjVid].begin());
 				}
 			}
 			else
 			{
-				for (JunctionIterator it(vid, GetInstancesCount(vid) - 1); it.Valid(); --it)
+				auto it = std::upper_bound(vertex_[adjVid].rbegin(), vertex_[adjVid].rend(), Vertex(back.GetChrId(), back.GetIndex()), Vertex::CompareBackward);
+				if (it != vertex_[adjVid].rend())
 				{
-					if (!it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() < back.GetPosition())
-					{
-						return it;
-					}
+					size_t ridx = it - vertex_[adjVid].rbegin();
+					return JunctionIterator(vid, vertex_[adjVid].size() - ridx - 1);
 				}
 			}
 			
@@ -633,24 +646,22 @@ namespace Sibelia
 
 		JunctionIterator InstanceExtensionBackward(JunctionSequentialIterator back, int64_t vid) const
 		{
+			int64_t adjVid = abs(vid);
 			if (back.IsPositiveStrand())
 			{
-				for (JunctionIterator it(vid, GetInstancesCount(vid) - 1); it.Valid(); --it)
+				auto it = std::upper_bound(vertex_[adjVid].rbegin(), vertex_[adjVid].rend(), Vertex(back.GetChrId(), back.GetIndex()), Vertex::CompareBackward);
+				if (it != vertex_[adjVid].rend())
 				{
-					if (it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() < back.GetPosition())
-					{
-						return it;
-					}
-				}				
+					size_t ridx = it - vertex_[adjVid].rbegin();
+					return JunctionIterator(vid, vertex_[adjVid].size() - ridx - 1);
+				}
 			}
 			else
 			{
-				for (JunctionIterator it(vid, 0); it.Valid(); ++it)
+				auto it = std::upper_bound(vertex_[adjVid].begin(), vertex_[adjVid].end(), Vertex(back.GetChrId(), back.GetIndex()), Vertex::CompareForward);
+				if (it != vertex_[adjVid].end())
 				{
-					if (!it.IsPositiveStrand() && it.GetChrId() == back.GetChrId() && it.GetPosition() > back.GetPosition())
-					{
-						return it;
-					}
+					return JunctionIterator(vid, it - vertex_[adjVid].begin());
 				}
 			}
 
@@ -739,7 +750,7 @@ namespace Sibelia
 					vertex_[i][j].revCh = pos_ > 0 ? TwoPaCo::DnaChar::ReverseChar(sequence_[chr][pos_ - 1]) : 'N';
 				}
 
-				std::sort(vertex_[i].begin(), vertex_[i].end());
+				std::sort(vertex_[i].begin(), vertex_[i].end(), Vertex::CompareForward);
 			}
 			
 			mutex_.resize(GetChrNumber());

@@ -296,7 +296,7 @@ namespace Sibelia
 
 		bool Compatible(const JunctionStorage::JunctionSequentialIterator & start, const JunctionStorage::JunctionSequentialIterator & end, const Edge & e) const
 		{
-			if (start.IsPositiveStrand() != end.IsPositiveStrand())
+			if (start.IsPositiveStrand() != end.IsPositiveStrand() || start.GetChrId() != end.GetChrId())
 			{
 				return false;
 			}

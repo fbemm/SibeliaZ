@@ -226,7 +226,7 @@ namespace Sibelia
 							}
 						}
 			
-						
+
 						while (true)
 						{
 							int64_t prevBestScore = currentPath.Score(finder.scoreFullChains_);
@@ -237,6 +237,7 @@ namespace Sibelia
 							}
 						}
 						
+
 						if (!finder.TryFinalizeBlock(currentPath, goodInstance, std::cerr))
 						{
 							explore = false;
