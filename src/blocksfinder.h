@@ -406,14 +406,15 @@ namespace Sibelia
 			}
 		}
 
-		void GenerateReport(const BlockList & block, const std::string & fileName) const;
-		std::vector<double> CalculateCoverage(GroupedBlockList::const_iterator start, GroupedBlockList::const_iterator end) const;
+		void ListChrs(std::ostream & out) const;
 		std::string OutputIndex(const BlockInstance & block) const;
+		void GenerateReport(const BlockList & block, const std::string & fileName) const;
 		void OutputBlocks(const std::vector<BlockInstance>& block, std::ofstream& out) const;
 		void ListBlocksIndices(const BlockList & block, const std::string & fileName) const;
 		void ListChromosomesAsPermutations(const BlockList & block, const std::string & fileName) const;
+		std::vector<double> CalculateCoverage(GroupedBlockList::const_iterator start, GroupedBlockList::const_iterator end, std::vector<bool> & cover) const;
 		void TryOpenFile(const std::string & fileName, std::ofstream & stream) const;
-		void ListChrs(std::ostream & out) const;
+		
 		
 		template<class P>
 		bool TryFinalizeBlock(P & currentPath, std::pair<int64_t, std::vector<Path::Instance> > & goodInstance, std::ostream & log)
