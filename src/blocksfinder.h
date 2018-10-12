@@ -201,8 +201,8 @@ namespace Sibelia
 				std::vector<uint32_t> data;
 				std::vector<uint32_t> count(finder.storage_.GetVerticesNumber() * 2 + 1, 0);
 				std::pair<int64_t, std::vector<Path::Instance> > goodInstance;
-				Path finalizer(finder.storage_, finder.maxBranchSize_, finder.minBlockSize_, finder.minBlockSize_, finder.maxFlankingSize_);
-				Path currentPath(finder.storage_, finder.maxBranchSize_, finder.minBlockSize_, finder.minBlockSize_, finder.maxFlankingSize_);
+				Path finalizer(finder.storage_, finder.maxBranchSize_, finder.minBlockSize_, finder.minBlockSize_, finder.maxFlankingSize_, finder.abundanceThreshold_);
+				Path currentPath(finder.storage_, finder.maxBranchSize_, finder.minBlockSize_, finder.minBlockSize_, finder.maxFlankingSize_, finder.abundanceThreshold_);
 				for (size_t i = range.begin(); i != range.end(); i++)
 				{
 					if (finder.count_++ % 10000 == 0)
@@ -534,7 +534,7 @@ namespace Sibelia
 			}
 		}
 
-		void FindBlocks(int64_t minBlockSize, int64_t maxBranchSize, int64_t maxFlankingSize, int64_t lookingDepth, int64_t sampleSize, int64_t threads, const std::string & debugOut)
+		void FindBlocks(int64_t minBlockSize, int64_t maxBranchSize, int64_t maxFlankingSize, int64_t lookingDepth, int64_t sampleSize, int64_t threads, int64_t abundanceThreshold, const std::string & debugOut)
 		{
 			blocksFound_ = 0;
 			sampleSize_ = sampleSize;
@@ -542,6 +542,7 @@ namespace Sibelia
 			minBlockSize_ = minBlockSize;
 			maxBranchSize_ = maxBranchSize;
 			maxFlankingSize_ = maxFlankingSize;
+			abundanceThreshold_ = abundanceThreshold;
 			blockId_.resize(storage_.GetChrNumber());
 			for (size_t i = 0; i < storage_.GetChrNumber(); i++)
 			{
@@ -553,7 +554,7 @@ namespace Sibelia
 			{
 				for (JunctionStorage::JunctionIterator it(v); it.Valid(); ++it)
 				{
-					if (it.IsPositiveStrand())
+					if (it.IsPositiveStrand() && storage_.GetInstancesCount(v) <= abundanceThreshold)
 					{
 						shuffle.push_back(v);
 						break;
@@ -842,7 +843,8 @@ namespace Sibelia
 			}
 		};
 
-		std::pair<int32_t, NextVertex> MostPopularVertex(const Path & currentPath, bool forward, std::vector<uint32_t> & count, std::vector<uint32_t> & data)
+		template<bool forward>
+		std::pair<int32_t, NextVertex> MostPopularVertex(const Path & currentPath, std::vector<uint32_t> & count, std::vector<uint32_t> & data)
 		{
 			NextVertex ret;
 			int32_t bestVid = 0;
@@ -856,7 +858,8 @@ namespace Sibelia
 					int64_t weight = abs(inst->Front().GetPosition() - inst->Back().GetPosition()) + 1;
 					auto origin = forward ? inst->Back() : inst->Front();
 					auto it = forward ? origin.Next() : origin.Prev();
-					for (size_t d = 1; it.Valid() && (d < lookingDepth_  || abs(it.GetPosition() - origin.GetPosition()) <= maxBranchSize_); d++)
+					size_t d = 1;
+					do
 					{
 						int32_t vid = it.GetVertexId();
 						if (!currentPath.IsInPath(vid) && !it.IsUsed())
@@ -890,7 +893,7 @@ namespace Sibelia
 						{
 							--it;
 						}
-					}
+					} while (it.Valid() && abs(it.GetPosition() - origin.GetPosition()) <= maxBranchSize_);
 				}
 			}
 
@@ -914,7 +917,7 @@ namespace Sibelia
 			bool success = false;
 			int64_t origin = currentPath.Origin();
 			std::pair<int32_t, NextVertex> nextForwardVid;
-			nextForwardVid = MostPopularVertex(currentPath, true, count, data);
+			nextForwardVid = MostPopularVertex<true>(currentPath, count, data);
 			if (nextForwardVid.first != 0)
 			{
 				for (auto it = nextForwardVid.second.origin; it.GetVertexId() != nextForwardVid.first; ++it)
@@ -963,7 +966,7 @@ namespace Sibelia
 		{
 			bool success = false;
 			std::pair<int32_t, NextVertex> nextBackwardVid;
-			nextBackwardVid = MostPopularVertex(currentPath, false, count, data);
+			nextBackwardVid = MostPopularVertex<false>(currentPath, count, data);
 			if (nextBackwardVid.first != 0)
 			{
 				for (auto it = nextBackwardVid.second.origin; it.GetVertexId() != nextBackwardVid.first; --it)
@@ -1013,6 +1016,7 @@ namespace Sibelia
 		int64_t minBlockSize_;
 		int64_t maxBranchSize_;
 		int64_t maxFlankingSize_;
+		int64_t abundanceThreshold_;
 		JunctionStorage & storage_;
 		tbb::mutex debugMutex_;
 		std::ofstream debugOut_;

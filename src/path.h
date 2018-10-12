@@ -38,11 +38,13 @@ namespace Sibelia
 			int64_t maxBranchSize,
 			int64_t minBlockSize,
 			int64_t minScoringUnit,
-			int64_t maxFlankingSize) :
+			int64_t maxFlankingSize,
+			int64_t abundanceThreshold) :
 			maxBranchSize_(maxBranchSize),
 			minBlockSize_(minBlockSize),
 			minScoringUnit_(minScoringUnit),
 			maxFlankingSize_(maxFlankingSize),
+			abundanceThreshold_(abundanceThreshold),
 			storage_(&storage),
 			distanceKeeper_(storage.GetVerticesNumber()),
 			instance_(storage.GetChrNumber())
@@ -382,7 +384,7 @@ namespace Sibelia
 
 			int64_t realDiff = end.GetPosition() - start.GetPosition();
 			int64_t ancestralDiff = distanceKeeper_.Get(end.GetVertexId()) - distanceKeeper_.Get(start.GetVertexId());
-			assert(ancestralDiff > 0);
+			assert(ancestralDiff >= 0);
 			if (start.IsPositiveStrand())
 			{
 				if (realDiff < 0)
@@ -465,7 +467,7 @@ namespace Sibelia
 								path->goodInstance_.push_back(inst);
 							}
 						}
-						else
+						else if(path->storage_->GetInstancesCount(vertex) <= path->abundanceThreshold_)
 						{
 							path->allInstance_.push_back(instanceSet.insert(Instance(nowIt.SequentialIterator(), distance)));
 						}
@@ -527,7 +529,7 @@ namespace Sibelia
 								path->goodInstance_.push_back(inst);
 							}
 						}
-						else
+						else if(path->storage_->GetInstancesCount(vertex) <= path->abundanceThreshold_)
 						{
 							path->allInstance_.push_back(instanceSet.insert(Instance(nowIt.SequentialIterator(), distance)));
 						}
@@ -665,6 +667,7 @@ namespace Sibelia
 		int64_t leftBodyFlank_;
 		int64_t rightBodyFlank_;
 		int64_t maxFlankingSize_;
+		int64_t abundanceThreshold_;
 		DistanceKeeper distanceKeeper_;
 		const JunctionStorage * storage_;
 		friend class BestPath;

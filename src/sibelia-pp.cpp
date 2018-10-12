@@ -152,7 +152,7 @@ int main(int argc, char * argv[])
 			genomesFileName.getValue(),
 			kvalue.getValue(),
 			threads.getValue(),
-			abundanceThreshold.getValue(),
+			INT64_MAX,
 			0);
 
 		Sibelia::BlocksFinder finder(storage, kvalue.getValue());		
@@ -162,6 +162,7 @@ int main(int argc, char * argv[])
 			lookingDepth.getValue(),
 			sampleSize.getValue(),
 			threads.getValue(),
+			abundanceThreshold.getValue(),
 			outDirName.getValue() + "/paths.txt");
 		finder.GenerateLegacyOutput(outDirName.getValue());
 	//	std::ofstream dumpStream(outDirName.getValue() + "/graph.dot");
